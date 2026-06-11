@@ -1,0 +1,107 @@
+name: Apex Security Scan
+
+on:
+  push:
+    branches: ["main", "develop", "feature/**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  apex-security-scan:
+    name: Run Security Scanners
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Semgrep
+        run: pip install semgrep
+
+      - name: Run Semgrep SAST scan
+        id: semgrep
+        run: |
+          semgrep scan \
+            --config=auto \
+            --json \
+            --output=semgrep-results.json \
+            --no-error \
+            . || true
+          echo "semgrep_done=true" >> $GITHUB_OUTPUT
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy -y
+
+      - name: Run Trivy IaC scan
+        id: trivy
+        run: |
+          trivy fs \
+            --format json \
+            --output trivy-results.json \
+            --scanners vuln,misconfig \
+            --exit-code 0 \
+            . || true
+          echo "trivy_done=true" >> $GITHUB_OUTPUT
+
+      - name: Send Semgrep results to Apex API
+        if: steps.semgrep.outputs.semgrep_done == 'true'
+        env:
+          APEX_API_URL: ${{ secrets.APEX_API_URL }}
+        run: |
+          if [ -f semgrep-results.json ]; then
+            PAYLOAD=$(jq -n \
+              --arg tool "semgrep" \
+              --arg repo "${{ github.repository }}" \
+              --arg branch "${{ github.ref_name }}" \
+              --arg sha "${{ github.sha }}" \
+              --rawfile raw semgrep-results.json \
+              '{tool: $tool, repository: $repo, branch: $branch, commit_sha: $sha, raw_json: $raw}')
+            curl -s -X POST \
+              "${APEX_API_URL}/api/scan" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              --max-time 30 || echo "⚠ API indisponível — resultado não enviado"
+          fi
+
+      - name: Send Trivy results to Apex API
+        if: steps.trivy.outputs.trivy_done == 'true'
+        env:
+          APEX_API_URL: ${{ secrets.APEX_API_URL }}
+        run: |
+          if [ -f trivy-results.json ]; then
+            PAYLOAD=$(jq -n \
+              --arg tool "trivy" \
+              --arg repo "${{ github.repository }}" \
+              --arg branch "${{ github.ref_name }}" \
+              --arg sha "${{ github.sha }}" \
+              --rawfile raw trivy-results.json \
+              '{tool: $tool, repository: $repo, branch: $branch, commit_sha: $sha, raw_json: $raw}')
+            curl -s -X POST \
+              "${APEX_API_URL}/api/scan" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              --max-time 30 || echo "⚠ API indisponível — resultado não enviado"
+          fi
+
+      - name: Upload scan artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: apex-scan-results-${{ github.sha }}
+          path: |
+            semgrep-results.json
+            trivy-results.json
+          retention-days: 30
