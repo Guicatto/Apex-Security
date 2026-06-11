@@ -1,0 +1,65 @@
+{
+  "version": "1.0",
+  "description": "Regras de priorização da Apex Security baseadas em contexto IaC",
+  "rules": [
+    {
+      "id": "rule_001",
+      "name": "Banco de dados sem exposição à internet",
+      "condition": {
+        "severity": ["CRITICAL", "HIGH"],
+        "title_contains": ["sql", "database", "db", "postgres", "mysql", "mongodb"],
+        "iac_internet_exposed": false
+      },
+      "action": "downgrade",
+      "target_severity": "MEDIUM",
+      "justification": "Vulnerabilidade grave em banco de dados isolado da internet tem risco de exploração reduzido"
+    },
+    {
+      "id": "rule_002",
+      "name": "Senha hardcoded em ambiente de teste",
+      "condition": {
+        "severity": ["HIGH", "MEDIUM"],
+        "title_contains": ["password", "hardcoded", "secret", "credential"],
+        "file_path_contains": ["test", "spec", "mock", "fixture"]
+      },
+      "action": "downgrade",
+      "target_severity": "LOW",
+      "justification": "Credenciais hardcoded em arquivos de teste não chegam a produção"
+    },
+    {
+      "id": "rule_003",
+      "name": "Vulnerabilidade crítica com exposição pública confirmada",
+      "condition": {
+        "severity": ["MEDIUM", "LOW"],
+        "iac_internet_exposed": true,
+        "cve_id_present": true
+      },
+      "action": "upgrade",
+      "target_severity": "HIGH",
+      "justification": "CVE em serviço exposto à internet tem impacto real elevado"
+    },
+    {
+      "id": "rule_004",
+      "name": "Misconfiguration de IaC sem CVE",
+      "condition": {
+        "severity": ["HIGH"],
+        "source_tool": "trivy",
+        "cve_id_present": false,
+        "title_contains": ["misconfiguration", "config"]
+      },
+      "action": "downgrade",
+      "target_severity": "MEDIUM",
+      "justification": "Misconfiguration sem CVE associado tem menor urgência de correção"
+    },
+    {
+      "id": "rule_005",
+      "name": "Vulnerabilidade INFO sempre permanece INFO",
+      "condition": {
+        "severity": ["INFO"]
+      },
+      "action": "keep",
+      "target_severity": "INFO",
+      "justification": "Alertas informativos não representam risco imediato"
+    }
+  ]
+}

@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Alert, Repository
+from services.normalizer import normalize
+from services.prioritizer import prioritize
 from pydantic import BaseModel
 from typing import Optional, List
-import json
 from datetime import datetime
 
 router = APIRouter()
@@ -23,6 +24,7 @@ class AlertResponse(BaseModel):
     source_tool: str
     repository: str
     severity: str
+    severity_adjusted: Optional[str]
     title: str
     file_path: Optional[str]
     line_number: Optional[int]
@@ -34,45 +36,67 @@ class AlertResponse(BaseModel):
 
 @router.post("/scan", status_code=201)
 def receive_scan(payload: ScanPayload, db: Session = Depends(get_db)):
-    """
-    Recebe o output bruto de um scanner (Semgrep ou Trivy)
-    e salva no banco. A normalização ASU será adicionada na Reunião 2.
-    Por enquanto salva o raw_output para não bloquear o pipeline.
-    """
+    # Registrar repositório se não existir
     repo = db.query(Repository).filter(Repository.name == payload.repository).first()
     if not repo:
         repo = Repository(name=payload.repository)
         db.add(repo)
         db.commit()
 
+    # Normalizar para formato ASU
     try:
-        raw_data = json.loads(payload.raw_json)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="raw_json inválido — não é um JSON válido")
+        normalized_alerts = normalize(payload.tool, payload.raw_json, payload.repository)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    alert = Alert(
-        source_tool=payload.tool,
-        repository=payload.repository,
-        severity="UNKNOWN",
-        title=f"[Raw] Scan recebido de {payload.tool}",
-        raw_output=payload.raw_json
-    )
-    db.add(alert)
-    db.commit()
-    db.refresh(alert)
+    # Aplicar priorização por contexto IaC
+    prioritized_alerts = [prioritize(alert) for alert in normalized_alerts]
+
+    # Salvar cada alerta no banco
+    saved_ids = []
+    for alert_data in prioritized_alerts:
+        alert = Alert(
+            source_tool=alert_data["source_tool"],
+            repository=alert_data["repository"],
+            file_path=alert_data.get("file_path"),
+            line_number=alert_data.get("line_number"),
+            severity=alert_data["severity"],
+            severity_adjusted=alert_data.get("severity_adjusted"),
+            title=alert_data["title"],
+            description=alert_data.get("description"),
+            cve_id=alert_data.get("cve_id"),
+            iac_internet_exposed=alert_data.get("iac_internet_exposed"),
+            raw_output=alert_data.get("raw_output")
+        )
+        db.add(alert)
+        db.commit()
+        db.refresh(alert)
+        saved_ids.append(alert.id)
 
     return {
-        "message": "Scan recebido com sucesso",
-        "alert_id": alert.id,
+        "message": "Scan normalizado e salvo com sucesso",
         "tool": payload.tool,
         "repository": payload.repository,
-        "status": "saved_raw — normalização pendente (Reunião 2)"
+        "alerts_saved": len(saved_ids),
+        "alert_ids": saved_ids
     }
 
 
 @router.get("/alerts", response_model=List[AlertResponse])
-def list_alerts(db: Session = Depends(get_db)):
-    return db.query(Alert).order_by(Alert.created_at.desc()).limit(100).all()
+def list_alerts(
+    severity: Optional[str] = None,
+    repository: Optional[str] = None,
+    source_tool: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(Alert)
+    if severity:
+        query = query.filter(Alert.severity_adjusted == severity.upper())
+    if repository:
+        query = query.filter(Alert.repository == repository)
+    if source_tool:
+        query = query.filter(Alert.source_tool == source_tool)
+    return query.order_by(Alert.created_at.desc()).limit(100).all()
 
 
 @router.get("/alerts/{alert_id}", response_model=AlertResponse)
@@ -85,8 +109,18 @@ def get_alert(alert_id: int, db: Session = Depends(get_db)):
 
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
+    from sqlalchemy import func
     total = db.query(Alert).count()
+    critical = db.query(Alert).filter(Alert.severity_adjusted == "CRITICAL").count()
+    high = db.query(Alert).filter(Alert.severity_adjusted == "HIGH").count()
+    medium = db.query(Alert).filter(Alert.severity_adjusted == "MEDIUM").count()
+    low = db.query(Alert).filter(Alert.severity_adjusted == "LOW").count()
     return {
         "total_alerts": total,
-        "message": "Stats completos disponíveis após Reunião 2 (normalização ASU)"
+        "by_severity": {
+            "CRITICAL": critical,
+            "HIGH": high,
+            "MEDIUM": medium,
+            "LOW": low
+        }
     }

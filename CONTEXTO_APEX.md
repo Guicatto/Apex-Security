@@ -1,69 +1,78 @@
 # CONTEXTO_APEX — Estado atual do projeto
 
 Última atualização: 2026-06-11
-Reunião atual: R1 concluída (pendências manuais listadas abaixo)
+Reunião atual: R3 concluída
 
 ## Stack tecnológica definida
 
-- Backend: Python 3.11 + FastAPI + SQLAlchemy
-- Banco: PostgreSQL 18 (banco: apex_db) — instalado em D:\postgresql\18
+- Backend: Python 3.11.9 + FastAPI + SQLAlchemy
+- Banco: PostgreSQL 18.4 (banco: apex_db) — instalado em D:\postgresql\18
 - Frontend: React + Vite (Reunião 6)
 - CI/CD: GitHub Actions
 - Scanners: Semgrep (SAST) + Trivy (IaC/containers)
-- LLM: Gemini API (google-generativeai) — decisão confirmada pelo grupo em 2026-06-11
-  (o Business Case oficial menciona Claude/Anthropic; o grupo optou por seguir o prompt
-  operacional com Gemini — revisar o Business Case na R7 para alinhar os documentos)
+- LLM: Gemini API (google-generativeai)
 - Integração GitHub: PyGitHub
+- Repositório: https://github.com/Guicatto/Apex-Security
 
 ## Status dos módulos
 
-- [x] Módulo 1: Coleta no pipeline CI/CD (workflow criado; falta push + secret — ver pendências)
-- [ ] Módulo 2: Normalização ASU
-- [ ] Módulo 3: Priorização por contexto IaC
-- [ ] Módulo 4: DLP de Borda
-- [ ] Módulo 5: Remediação via Gemini API
-- [ ] Módulo 6: Pull Request automático
-- [ ] Dashboard React
+- [x] Módulo 1: Coleta no pipeline CI/CD — COMPLETO
+- [x] Módulo 2: Normalização ASU — COMPLETO
+- [x] Módulo 3: Priorização por contexto IaC — COMPLETO
+- [x] Módulo 4: DLP de Borda — COMPLETO
+- [ ] Módulo 5: Remediação via Gemini API — PENDENTE (R4)
+- [ ] Módulo 6: Pull Request automático — PENDENTE (R5)
+- [ ] Dashboard React — PENDENTE (R6)
+
+## Arquivos principais criados
+
+- backend/services/normalizer.py — parsers Semgrep e Trivy para formato ASU
+- backend/services/prioritizer.py — motor de regras de priorização
+- backend/services/rules.json — regras determinísticas de contexto IaC (5 regras)
+- backend/services/dlp.py — detecção e ofuscação de secrets via Regex
+- tests/test_normalizer.py — testes unitários da normalização (17 testes)
+- tests/test_prioritizer.py — testes unitários da priorização (5 testes)
+- tests/test_dlp.py — testes unitários do DLP (11 testes)
+- tests/conftest.py — insere backend/ no sys.path (tests/ vive na raiz, conforme estrutura da R1)
 
 ## Decisões técnicas tomadas
 
-- Usamos SQLAlchemy como ORM (não queries SQL brutas)
-- .env nunca sobe para o GitHub (está no .gitignore)
-- APEX_API_URL é configurado como secret no GitHub Actions
-- O endpoint /api/scan por enquanto salva raw_output — normalização na R2
-- O workflow apex-scan.yml existe em DOIS lugares: pipeline/.github/workflows/ (cópia de
-  referência, conforme estrutura do prompt) e .github/workflows/ na RAIZ — o GitHub Actions
-  só executa workflows da raiz do repositório; sem a cópia na raiz o pipeline nunca dispararia
-- No workflow, a instalação do Trivy usa keyring (gpg --dearmor) em vez de apt-key, e o scan
-  usa --scanners vuln,misconfig em vez de --security-checks vuln,config: o apt-key foi removido
-  do Ubuntu 24.04 (runner ubuntu-latest) e a flag --security-checks foi removida do Trivy atual
-- Prints de database.py usam [OK]/[ERRO] em vez de emoji ✅/❌: o console Windows (cp1252)
-  lança UnicodeEncodeError com emoji e derrubava o startup do uvicorn
+- LLM: Gemini API (google-generativeai) — não Claude/Anthropic (Business Case a alinhar na R7)
+- ORM: SQLAlchemy — não queries SQL brutas
+- .env nunca sobe para o GitHub — está no .gitignore
+- Python 3.11.9 via winget (o 3.14 não tem wheels para as dependências pinadas)
+- Emojis removidos dos prints do database.py — Windows cp1252 não suporta
+- Workflow duplicado: pipeline/.github/workflows/ (referência) e raiz .github/workflows/ (o que roda)
+- dlp.py: a linha `from typing import tuple` do prompt da R2/R3 foi omitida — é um
+  ImportError em Python (no 3.11+ usa-se o tuple nativo em annotations)
+- dlp.py: a checagem "já foi substituído" usa `'__APEX_SECRET_' in original_value` (em vez de
+  startswith) — evita re-ofuscar um trecho que contém placeholder, o que quebraria a reversão
+- Comando de testes: rodar `pytest tests/ -v` a partir da RAIZ do projeto (não de backend/),
+  pois tests/ fica na raiz; o conftest.py resolve os imports de services.*
 
-## Ambiente desta máquina (notas da R1)
+## Como rodar os testes
 
-- Python 3.14.6 era o único instalado; Python 3.11.9 foi instalado via winget (escopo usuário)
-  para casar com os pins exatos do requirements.txt (psycopg2-binary 2.9.9 e pydantic 2.7.1
-  não têm wheels para 3.14). O venv usa Python 3.11.9.
-- Node.js NÃO está instalado nesta máquina — necessário só na R6 (dashboard React). Instalar antes.
-- Docker Desktop NÃO está instalado — só necessário para rodar Trivy localmente; no CI o Trivy
-  roda no runner do GitHub. Instalar se quiser testar Trivy local.
+```powershell
+cd D:\CLAUDE\apex-security
+backend\.venv\Scripts\activate
+pytest tests/ -v --tb=short
+```
 
-## Variáveis de ambiente necessárias (.env)
+Resultado atual: 33 testes, todos verdes (17 normalizer + 5 prioritizer + 11 DLP).
 
-- DATABASE_URL=postgresql://postgres:SENHA@localhost:5432/apex_db (já configurado)
-- GEMINI_API_KEY=AIza... (PENDENTE — adicionar a chave real, nunca commitar)
-- GITHUB_TOKEN=(será adicionado na R5)
-- APEX_API_URL=(URL pública da API via ngrok — necessário para o GitHub Actions enviar resultados)
+## Variáveis de ambiente (.env)
+
+- DATABASE_URL=postgresql://postgres:***@localhost:5432/apex_db — OK
+- GEMINI_API_KEY — PRESENTE no .env (ver nota abaixo sobre o formato da chave)
+- GITHUB_TOKEN= — PENDENTE (R5)
+- APEX_API_URL — configurado como secret no GitHub Actions (ngrok)
 
 ## Pendências abertas
 
-- Criar o repositório apex-security no GitHub e fazer o push (parada manual 1)
-- Configurar secret APEX_API_URL no GitHub (parada manual 2 — requer ngrok rodando)
-- Preencher GEMINI_API_KEY no backend/.env (parada manual 3)
-- Testar o pipeline completo com push de vulnerabilidade proposital (parada manual 4)
-- Instalar Node.js antes da R6; Docker Desktop opcional para Trivy local
+- Validar a GEMINI_API_KEY antes da R4 (chave atual não tem o formato AIza... típico
+  do Google AI Studio — testar com uma chamada real)
+- Instalar Node.js antes da R6 (dashboard React); Docker Desktop opcional para Trivy local
 
 ## Próxima reunião
 
-R2 — Normalização ASU (parsers Semgrep e Trivy → JSON canônico)
+R4 — Remediação via Gemini API (Módulo 5)
