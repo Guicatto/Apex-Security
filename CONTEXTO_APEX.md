@@ -1,85 +1,71 @@
-# CONTEXTO_APEX — Estado atual do projeto
+# CONTEXTO_APEX — Estado final do projeto
 
-Última atualização: 2026-06-22
-Reunião atual: R4 concluída / R5 parcial (Módulo 6 aguardando GITHUB_TOKEN)
+Última atualização: 2026-06-23
+Status: PROJETO 100% COMPLETO
 
-## Stack tecnológica definida
+## Todos os módulos entregues
+
+- [x] Módulo 1: Coleta no pipeline CI/CD
+- [x] Módulo 2: Normalização ASU
+- [x] Módulo 3: Priorização por contexto IaC
+- [x] Módulo 4: DLP de Borda
+- [x] Módulo 5: Remediação via Gemini API
+- [x] Módulo 6: Pull Request automático com revisão humana
+- [x] Dashboard React — identidade visual preto e dourado
+
+## Stack tecnológica
 
 - Backend: Python 3.11.9 + FastAPI + SQLAlchemy
-- Banco: PostgreSQL 18.4 (banco: apex_db) — instalado em D:\postgresql\18
-- Frontend: React + Vite (Reunião 6)
+- Banco: PostgreSQL 18.4 (banco: apex_db) — em D:\postgresql\18
+- Frontend: React + Vite + Recharts (pasta frontend/)
 - CI/CD: GitHub Actions
 - Scanners: Semgrep (SAST) + Trivy (IaC/containers)
-- LLM: Gemini API — modelo gemini-2.5-flash-lite (ver nota de migração abaixo)
+- LLM: Gemini API — modelo gemini-2.5-flash-lite (configurável via GEMINI_MODEL)
 - Integração GitHub: PyGitHub
 - Repositório: https://github.com/Guicatto/Apex-Security
 
-## Status dos módulos
+## Estrutura final do frontend
 
-- [x] Módulo 1: Coleta no pipeline CI/CD — COMPLETO
-- [x] Módulo 2: Normalização ASU — COMPLETO
-- [x] Módulo 3: Priorização por contexto IaC — COMPLETO
-- [x] Módulo 4: DLP de Borda — COMPLETO
-- [x] Módulo 5: Remediação via Gemini API — COMPLETO (testado com chamada real)
-- [x] Módulo 6: Pull Request automático — ESTRUTURA CRIADA, aguardando GITHUB_TOKEN
-- [ ] Dashboard React — PENDENTE (R6)
+- frontend/index.html — fontes Google (Cinzel, Raleway, Inter, JetBrains Mono), favicon = logo
+- frontend/public/apex-logo.png — logo oficial usado no header (40px)
+- frontend/src/theme.js — paleta, gradientes, fontes, severityConfig
+- frontend/src/index.css — CSS global (variáveis preto/dourado, scrollbar, divider)
+- frontend/src/services/api.js — cliente axios para o backend (porta 8000)
+- frontend/src/components/ — Layout, Card, SeverityBadge, StatCard
+- frontend/src/pages/ — Dashboard, Alerts, PullRequests, Remediations, Repositories
+- frontend/src/App.jsx + main.jsx — rotas (react-router-dom)
 
-## Arquivos criados nesta sessão (R4/R5)
-
-- backend/services/remediator.py — chamada ao Gemini com DLP integrado (ofusca antes, reverte depois)
-- backend/routes/remediate.py — endpoint POST /api/remediate/{alert_id} + GETs de remediação
-- backend/services/pr_creator.py — criação de branch, commit e PR via PyGitHub
-- backend/routes/pullrequest.py — endpoints de PR (POST, PATCH status, GET list)
-- tests/test_remediator.py — testes com mock do Gemini (não consomem cota)
-- tests/apex_generated/.gitkeep — pasta onde os testes gerados pela IA são commitados no PR
-
-## Decisões técnicas e correções desta sessão
-
-- **Modelo Gemini migrado**: o prompt fixou `gemini-1.5-flash`, mas ele foi descontinuado
-  (a API retorna 404 para generateContent na v1beta). Além disso, esta chave tem cota ZERO
-  (free tier limit: 0) para `gemini-2.0-flash`. O modelo flash estável, barato e que TEM cota
-  nesta conta é `gemini-2.5-flash-lite` — mantém a decisão "flash, não pro/ultra". Configurável
-  via `GEMINI_MODEL` no .env.
-- O free tier do flash-lite tem RPM baixo: chamadas em rajada retornam 429 (vira 502 no endpoint).
-  Em uso normal (uma remediação por vez) funciona; se aparecer 502, esperar ~20s e repetir.
-- Pasta de testes gerados criada em `tests/apex_generated/` na RAIZ (não em backend/tests como
-  o mkdir do prompt sugeria) — coerente com a estrutura (tests/ fica na raiz desde a R1) e com
-  a entrada `.gitignore tests/apex_generated/*.py`. O pr_creator commita os testes nesse caminho.
-- main.py registra 3 routers: scan, remediation, pull-requests.
-
-## Como rodar os testes
+## Como rodar (backend + frontend juntos)
 
 ```powershell
-cd D:\CLAUDE\apex-security
-backend\.venv\Scripts\activate
-pytest tests/ -v --tb=short
+# Terminal 1 — backend
+cd D:\CLAUDE\apex-security\backend
+.venv\Scripts\activate
+uvicorn main:app --reload          # http://localhost:8000
+
+# Terminal 2 — frontend
+cd D:\CLAUDE\apex-security\frontend
+npm run dev                        # http://localhost:5173
 ```
 
-Resultado atual: 37 testes, todos verdes (17 normalizer + 5 prioritizer + 11 DLP + 4 remediator).
-Os testes do remediator usam mock — não consomem cota do Gemini.
+## Notas de ambiente desta máquina
 
-## Fluxo end-to-end validado nesta sessão
+- Node.js v24.17.0 está instalado em D:\Node.js (não na PATH padrão de alguns shells —
+  se `node`/`npm` não forem reconhecidos, usar o caminho completo ou adicionar D:\Node.js à PATH)
+- Python 3.11.9 no venv backend/.venv (3.14 não tem wheels para as deps pinadas)
+- GITHUB_TOKEN configurado no .env — fluxo de PR validado de ponta a ponta
+- Modelo Gemini: gemini-2.5-flash-lite (1.5-flash descontinuado; 2.0-flash com cota zero)
+- Free tier do Gemini tem RPM baixo: chamadas em rajada dão 429 (502 no endpoint) — repetir após ~20s
 
-POST /api/remediate/2 → DLP ofusca → Gemini (gemini-2.5-flash-lite) gera patch+teste →
-ofuscação revertida → salvo na tabela remediations (id=1). GET /api/remediations/2 retorna
-patch e teste preenchidos. POST /api/pull-request/2 retorna 503 (sem GITHUB_TOKEN — esperado).
+## Fluxo validado nesta sessão
 
-## Variáveis de ambiente (.env)
+PR real criado: https://github.com/Guicatto/Apex-Security/pull/2 (alert 2 → remediação id 1 →
+branch apex/fix-2-... → PR com patch + teste). Dashboard sobe em localhost:5173 com design
+preto/dourado, consumindo dados reais do backend (4 alertas, gráfico por severidade, botões
+REMEDIAR e CRIAR PR funcionais). 37 testes unitários verdes. Build de produção do frontend OK.
 
-- DATABASE_URL=postgresql://postgres:***@localhost:5432/apex_db — OK
-- GEMINI_API_KEY — OK e testada (chamada real funcionando com gemini-2.5-flash-lite)
-- GEMINI_MODEL — opcional; default gemini-2.5-flash-lite se ausente
-- GITHUB_TOKEN= — PENDENTE (parada manual desta sessão — ver abaixo)
-- APEX_API_URL — configurado como secret no GitHub Actions (ngrok)
+## Pendências humanas (fora do escopo do Claude Code)
 
-## Pendências abertas
-
-- PARADA MANUAL: gerar Personal Access Token do GitHub (escopos repo + workflow) e colocar
-  em GITHUB_TOKEN no backend/.env. Sem ele, /api/pull-request/{id} retorna 503 (correto).
-- Após o token: testar fluxo completo remediate → pull-request → PR aparece no GitHub.
-- Instalar Node.js antes da R6 (dashboard React); Docker Desktop opcional para Trivy local.
-
-## Próxima reunião
-
-R5 continuação — após adicionar GITHUB_TOKEN, testar o fluxo de PR ponta a ponta.
-R6 — Dashboard React.
+- [ ] Gravação do vídeo de demonstração do fluxo completo
+- [ ] Aprovação do PR de demonstração na apresentação
+- [ ] Apresentação final para o professor (Reunião 8)

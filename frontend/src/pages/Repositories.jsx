@@ -1,0 +1,99 @@
+import { useState, useEffect } from 'react'
+import Card from '../components/Card'
+import { getAlerts } from '../services/api'
+
+const severityColors = {
+  CRITICAL: '#C0392B',
+  HIGH: '#D35400',
+  MEDIUM: '#C9A84C',
+  LOW: '#1A6B3C',
+  INFO: '#2C4A6B',
+  UNKNOWN: '#8A7A5A',
+}
+
+export default function Repositories() {
+  const [repos, setRepos] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getAlerts()
+      .then(res => {
+        const grouped = {}
+        for (const alert of res.data) {
+          const name = alert.repository || 'desconhecido'
+          if (!grouped[name]) {
+            grouped[name] = { name, total: 0, severities: {} }
+          }
+          grouped[name].total += 1
+          const sev = (alert.severity_adjusted || alert.severity || 'UNKNOWN').toUpperCase()
+          grouped[name].severities[sev] = (grouped[name].severities[sev] || 0) + 1
+        }
+        setRepos(Object.values(grouped).sort((a, b) => b.total - a.total))
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  return (
+    <div>
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontFamily: "'Cinzel', serif", fontSize: '24px', color: '#F0E6C8', letterSpacing: '0.05em', marginBottom: '4px' }}>
+          Repositórios
+        </h1>
+        <p style={{ color: '#8A7A5A', fontFamily: 'Raleway', fontSize: '13px' }}>
+          Inventário de ativos monitorados e alertas por severidade
+        </p>
+      </div>
+
+      {loading ? (
+        <div style={{ color: '#8A7A5A', fontFamily: 'Raleway', letterSpacing: '0.2em' }}>CARREGANDO...</div>
+      ) : repos.length === 0 ? (
+        <Card>
+          <div style={{ color: '#8A7A5A', textAlign: 'center', padding: '32px', fontFamily: 'Raleway' }}>
+            Nenhum repositório com alertas ainda.
+          </div>
+        </Card>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+          {repos.map(repo => (
+            <Card key={repo.name} hoverable>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{
+                  fontFamily: 'JetBrains Mono',
+                  fontSize: '14px',
+                  color: '#F0E6C8',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>{repo.name}</div>
+                <div style={{
+                  fontFamily: "'Cinzel', serif",
+                  fontSize: '20px',
+                  fontWeight: '700',
+                  color: '#C9A84C',
+                  flexShrink: 0,
+                  marginLeft: '12px',
+                }}>{repo.total}</div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {Object.entries(repo.severities).map(([sev, count]) => (
+                  <span key={sev} style={{
+                    background: `${severityColors[sev] || '#8A7A5A'}20`,
+                    color: severityColors[sev] || '#8A7A5A',
+                    border: `1px solid ${severityColors[sev] || '#8A7A5A'}40`,
+                    borderRadius: '4px',
+                    padding: '2px 8px',
+                    fontSize: '10px',
+                    fontFamily: 'Raleway',
+                    fontWeight: '600',
+                    letterSpacing: '0.06em',
+                  }}>{sev} {count}</span>
+                ))}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
