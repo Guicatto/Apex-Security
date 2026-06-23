@@ -1,0 +1,91 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from database import get_db
+from models import Alert, Remediation
+from services.remediator import request_remediation
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+
+router = APIRouter()
+
+
+class RemediationResponse(BaseModel):
+    id: int
+    alert_id: int
+    patch_code: Optional[str]
+    test_code: Optional[str]
+    pr_description: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+@router.post("/remediate/{alert_id}", status_code=201)
+def remediate_alert(alert_id: int, db: Session = Depends(get_db)):
+    """
+    Recebe um alert_id, busca o alerta no banco,
+    chama o Gemini para gerar patch + teste e salva o resultado.
+    """
+    # Buscar o alerta
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail=f"Alerta {alert_id} nao encontrado")
+
+    # Verificar se já foi remediado
+    existing = db.query(Remediation).filter(Remediation.alert_id == alert_id).first()
+    if existing:
+        return {
+            "message": "Este alerta ja possui remediacao",
+            "remediation_id": existing.id,
+            "alert_id": alert_id
+        }
+
+    # Usar o raw_output como codigo a ser analisado
+    code_snippet = alert.raw_output or f"# Vulnerabilidade: {alert.title}\n# Arquivo: {alert.file_path}"
+
+    # Chamar o Gemini via serviço de remediação
+    try:
+        result = request_remediation(
+            alert_title=alert.title,
+            alert_description=alert.description,
+            alert_severity=alert.severity_adjusted or alert.severity,
+            file_path=alert.file_path or "desconhecido",
+            code_snippet=code_snippet
+        )
+    except (RuntimeError, ValueError) as e:
+        raise HTTPException(status_code=502, detail=f"Erro na remediacao via LLM: {e}")
+
+    # Salvar no banco
+    remediation = Remediation(
+        alert_id=alert_id,
+        patch_code=result["patch_code"],
+        test_code=result["test_code"],
+        pr_description=result["pr_description"]
+    )
+    db.add(remediation)
+    db.commit()
+    db.refresh(remediation)
+
+    return {
+        "message": "Remediacao gerada com sucesso",
+        "remediation_id": remediation.id,
+        "alert_id": alert_id,
+        "dlp_applied": result.get("dlp_applied", False),
+        "secrets_found": result.get("secrets_found", 0),
+        "patch_preview": result["patch_code"][:200] + "..." if len(result["patch_code"]) > 200 else result["patch_code"]
+    }
+
+
+@router.get("/remediations/{alert_id}", response_model=RemediationResponse)
+def get_remediation(alert_id: int, db: Session = Depends(get_db)):
+    remediation = db.query(Remediation).filter(Remediation.alert_id == alert_id).first()
+    if not remediation:
+        raise HTTPException(status_code=404, detail="Remediacao nao encontrada para este alerta")
+    return remediation
+
+
+@router.get("/remediations", response_model=list[RemediationResponse])
+def list_remediations(db: Session = Depends(get_db)):
+    return db.query(Remediation).order_by(Remediation.created_at.desc()).limit(100).all()

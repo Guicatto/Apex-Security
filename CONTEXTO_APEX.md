@@ -1,7 +1,7 @@
 # CONTEXTO_APEX — Estado atual do projeto
 
-Última atualização: 2026-06-11
-Reunião atual: R3 concluída
+Última atualização: 2026-06-22
+Reunião atual: R4 concluída / R5 parcial (Módulo 6 aguardando GITHUB_TOKEN)
 
 ## Stack tecnológica definida
 
@@ -10,7 +10,7 @@ Reunião atual: R3 concluída
 - Frontend: React + Vite (Reunião 6)
 - CI/CD: GitHub Actions
 - Scanners: Semgrep (SAST) + Trivy (IaC/containers)
-- LLM: Gemini API (google-generativeai)
+- LLM: Gemini API — modelo gemini-2.5-flash-lite (ver nota de migração abaixo)
 - Integração GitHub: PyGitHub
 - Repositório: https://github.com/Guicatto/Apex-Security
 
@@ -20,35 +20,32 @@ Reunião atual: R3 concluída
 - [x] Módulo 2: Normalização ASU — COMPLETO
 - [x] Módulo 3: Priorização por contexto IaC — COMPLETO
 - [x] Módulo 4: DLP de Borda — COMPLETO
-- [ ] Módulo 5: Remediação via Gemini API — PENDENTE (R4)
-- [ ] Módulo 6: Pull Request automático — PENDENTE (R5)
+- [x] Módulo 5: Remediação via Gemini API — COMPLETO (testado com chamada real)
+- [x] Módulo 6: Pull Request automático — ESTRUTURA CRIADA, aguardando GITHUB_TOKEN
 - [ ] Dashboard React — PENDENTE (R6)
 
-## Arquivos principais criados
+## Arquivos criados nesta sessão (R4/R5)
 
-- backend/services/normalizer.py — parsers Semgrep e Trivy para formato ASU
-- backend/services/prioritizer.py — motor de regras de priorização
-- backend/services/rules.json — regras determinísticas de contexto IaC (5 regras)
-- backend/services/dlp.py — detecção e ofuscação de secrets via Regex
-- tests/test_normalizer.py — testes unitários da normalização (17 testes)
-- tests/test_prioritizer.py — testes unitários da priorização (5 testes)
-- tests/test_dlp.py — testes unitários do DLP (11 testes)
-- tests/conftest.py — insere backend/ no sys.path (tests/ vive na raiz, conforme estrutura da R1)
+- backend/services/remediator.py — chamada ao Gemini com DLP integrado (ofusca antes, reverte depois)
+- backend/routes/remediate.py — endpoint POST /api/remediate/{alert_id} + GETs de remediação
+- backend/services/pr_creator.py — criação de branch, commit e PR via PyGitHub
+- backend/routes/pullrequest.py — endpoints de PR (POST, PATCH status, GET list)
+- tests/test_remediator.py — testes com mock do Gemini (não consomem cota)
+- tests/apex_generated/.gitkeep — pasta onde os testes gerados pela IA são commitados no PR
 
-## Decisões técnicas tomadas
+## Decisões técnicas e correções desta sessão
 
-- LLM: Gemini API (google-generativeai) — não Claude/Anthropic (Business Case a alinhar na R7)
-- ORM: SQLAlchemy — não queries SQL brutas
-- .env nunca sobe para o GitHub — está no .gitignore
-- Python 3.11.9 via winget (o 3.14 não tem wheels para as dependências pinadas)
-- Emojis removidos dos prints do database.py — Windows cp1252 não suporta
-- Workflow duplicado: pipeline/.github/workflows/ (referência) e raiz .github/workflows/ (o que roda)
-- dlp.py: a linha `from typing import tuple` do prompt da R2/R3 foi omitida — é um
-  ImportError em Python (no 3.11+ usa-se o tuple nativo em annotations)
-- dlp.py: a checagem "já foi substituído" usa `'__APEX_SECRET_' in original_value` (em vez de
-  startswith) — evita re-ofuscar um trecho que contém placeholder, o que quebraria a reversão
-- Comando de testes: rodar `pytest tests/ -v` a partir da RAIZ do projeto (não de backend/),
-  pois tests/ fica na raiz; o conftest.py resolve os imports de services.*
+- **Modelo Gemini migrado**: o prompt fixou `gemini-1.5-flash`, mas ele foi descontinuado
+  (a API retorna 404 para generateContent na v1beta). Além disso, esta chave tem cota ZERO
+  (free tier limit: 0) para `gemini-2.0-flash`. O modelo flash estável, barato e que TEM cota
+  nesta conta é `gemini-2.5-flash-lite` — mantém a decisão "flash, não pro/ultra". Configurável
+  via `GEMINI_MODEL` no .env.
+- O free tier do flash-lite tem RPM baixo: chamadas em rajada retornam 429 (vira 502 no endpoint).
+  Em uso normal (uma remediação por vez) funciona; se aparecer 502, esperar ~20s e repetir.
+- Pasta de testes gerados criada em `tests/apex_generated/` na RAIZ (não em backend/tests como
+  o mkdir do prompt sugeria) — coerente com a estrutura (tests/ fica na raiz desde a R1) e com
+  a entrada `.gitignore tests/apex_generated/*.py`. O pr_creator commita os testes nesse caminho.
+- main.py registra 3 routers: scan, remediation, pull-requests.
 
 ## Como rodar os testes
 
@@ -58,21 +55,31 @@ backend\.venv\Scripts\activate
 pytest tests/ -v --tb=short
 ```
 
-Resultado atual: 33 testes, todos verdes (17 normalizer + 5 prioritizer + 11 DLP).
+Resultado atual: 37 testes, todos verdes (17 normalizer + 5 prioritizer + 11 DLP + 4 remediator).
+Os testes do remediator usam mock — não consomem cota do Gemini.
+
+## Fluxo end-to-end validado nesta sessão
+
+POST /api/remediate/2 → DLP ofusca → Gemini (gemini-2.5-flash-lite) gera patch+teste →
+ofuscação revertida → salvo na tabela remediations (id=1). GET /api/remediations/2 retorna
+patch e teste preenchidos. POST /api/pull-request/2 retorna 503 (sem GITHUB_TOKEN — esperado).
 
 ## Variáveis de ambiente (.env)
 
 - DATABASE_URL=postgresql://postgres:***@localhost:5432/apex_db — OK
-- GEMINI_API_KEY — PRESENTE no .env (ver nota abaixo sobre o formato da chave)
-- GITHUB_TOKEN= — PENDENTE (R5)
+- GEMINI_API_KEY — OK e testada (chamada real funcionando com gemini-2.5-flash-lite)
+- GEMINI_MODEL — opcional; default gemini-2.5-flash-lite se ausente
+- GITHUB_TOKEN= — PENDENTE (parada manual desta sessão — ver abaixo)
 - APEX_API_URL — configurado como secret no GitHub Actions (ngrok)
 
 ## Pendências abertas
 
-- Validar a GEMINI_API_KEY antes da R4 (chave atual não tem o formato AIza... típico
-  do Google AI Studio — testar com uma chamada real)
-- Instalar Node.js antes da R6 (dashboard React); Docker Desktop opcional para Trivy local
+- PARADA MANUAL: gerar Personal Access Token do GitHub (escopos repo + workflow) e colocar
+  em GITHUB_TOKEN no backend/.env. Sem ele, /api/pull-request/{id} retorna 503 (correto).
+- Após o token: testar fluxo completo remediate → pull-request → PR aparece no GitHub.
+- Instalar Node.js antes da R6 (dashboard React); Docker Desktop opcional para Trivy local.
 
 ## Próxima reunião
 
-R4 — Remediação via Gemini API (Módulo 5)
+R5 continuação — após adicionar GITHUB_TOKEN, testar o fluxo de PR ponta a ponta.
+R6 — Dashboard React.

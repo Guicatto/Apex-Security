@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import Base, engine, test_connection
 from routes.scan import router as scan_router
+from routes.remediate import router as remediate_router
+from routes.pullrequest import router as pr_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -20,6 +22,8 @@ app.add_middleware(
 )
 
 app.include_router(scan_router, prefix="/api", tags=["scan"])
+app.include_router(remediate_router, prefix="/api", tags=["remediation"])
+app.include_router(pr_router, prefix="/api", tags=["pull-requests"])
 
 
 @app.on_event("startup")

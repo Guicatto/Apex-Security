@@ -14,8 +14,8 @@ A Apex Security automatiza o ciclo de detecção, priorização e remediação d
 | 2 | Normalização ASU                  | ✅ Completo       |
 | 3 | Priorização por Contexto IaC      | ✅ Completo       |
 | 4 | DLP de Borda                      | ✅ Completo       |
-| 5 | Remediação via Gemini API         | ⏳ Pendente (R4)  |
-| 6 | Pull Request com Revisão Humana   | ⏳ Pendente (R5)  |
+| 5 | Remediação via Gemini API         | ✅ Completo       |
+| 6 | Pull Request com Revisão Humana   | 🔄 Aguardando token |
 
 ## Schema ASU (Apex Standard Unified)
 

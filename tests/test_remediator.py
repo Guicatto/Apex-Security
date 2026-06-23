@@ -1,0 +1,86 @@
+import pytest
+import json
+from unittest.mock import patch, MagicMock
+from services.remediator import request_remediation
+
+# Resposta simulada do Gemini para os testes
+MOCK_GEMINI_RESPONSE = json.dumps({
+    "patch_code": "password = os.environ.get('PASSWORD')",
+    "test_code": "def test_no_hardcoded_password():\n    assert 'senha123' not in open('app.py').read()",
+    "pr_description": "Removida senha hardcoded. Agora usa variavel de ambiente."
+})
+
+
+class TestRequestRemediation:
+    @patch("services.remediator.genai.GenerativeModel")
+    def test_retorna_tres_campos_obrigatorios(self, mock_model_class):
+        # Configurar mock
+        mock_model = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = MOCK_GEMINI_RESPONSE
+        mock_model.generate_content.return_value = mock_response
+        mock_model_class.return_value = mock_model
+
+        result = request_remediation(
+            alert_title="Senha hardcoded",
+            alert_description="Senha em texto claro no codigo",
+            alert_severity="HIGH",
+            file_path="app.py",
+            code_snippet='password = "senha123"'
+        )
+        assert "patch_code" in result
+        assert "test_code" in result
+        assert "pr_description" in result
+
+    @patch("services.remediator.genai.GenerativeModel")
+    def test_dlp_aplicado_quando_ha_secrets(self, mock_model_class):
+        mock_model = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = MOCK_GEMINI_RESPONSE
+        mock_model.generate_content.return_value = mock_response
+        mock_model_class.return_value = mock_model
+
+        result = request_remediation(
+            alert_title="Token exposto",
+            alert_description="Token GitHub no codigo",
+            alert_severity="CRITICAL",
+            file_path="config.py",
+            code_snippet='token = "ghp_abcdefghijklmnopqrstuvwxyz123456789012"'
+        )
+        assert result["dlp_applied"] is True
+        assert result["secrets_found"] > 0
+
+    @patch("services.remediator.genai.GenerativeModel")
+    def test_json_invalido_levanta_value_error(self, mock_model_class):
+        mock_model = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "isso nao e json valido"
+        mock_model.generate_content.return_value = mock_response
+        mock_model_class.return_value = mock_model
+
+        with pytest.raises(ValueError):
+            request_remediation(
+                alert_title="Teste",
+                alert_description="Teste",
+                alert_severity="LOW",
+                file_path="test.py",
+                code_snippet="x = 1"
+            )
+
+    @patch("services.remediator.genai.GenerativeModel")
+    def test_campos_faltando_levanta_value_error(self, mock_model_class):
+        mock_model = MagicMock()
+        mock_response = MagicMock()
+        # Resposta sem test_code
+        mock_response.text = json.dumps({"patch_code": "x = 2", "pr_description": "desc"})
+        mock_model.generate_content.return_value = mock_response
+        mock_model_class.return_value = mock_model
+
+        with pytest.raises(ValueError, match="test_code"):
+            request_remediation(
+                alert_title="Teste",
+                alert_description="Teste",
+                alert_severity="LOW",
+                file_path="test.py",
+                code_snippet="x = 1"
+            )
