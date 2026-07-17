@@ -69,11 +69,18 @@ jobs:
               --arg sha "${{ github.sha }}" \
               --rawfile raw semgrep-results.json \
               '{tool: $tool, repository: $repo, branch: $branch, commit_sha: $sha, raw_json: $raw}')
-            curl -s -X POST \
+            HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST \
               "${APEX_API_URL}/api/scan" \
               -H "Content-Type: application/json" \
               -d "$PAYLOAD" \
-              --max-time 30 || echo "⚠ API indisponível — resultado não enviado"
+              --max-time 30)
+            if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+              echo "✅ Scan enviado com sucesso (HTTP $HTTP_CODE)"
+            else
+              echo "❌ Falha ao enviar scan — HTTP $HTTP_CODE"
+              cat /tmp/response.json
+              exit 1
+            fi
           fi
 
       - name: Send Trivy results to Apex API
@@ -89,11 +96,18 @@ jobs:
               --arg sha "${{ github.sha }}" \
               --rawfile raw trivy-results.json \
               '{tool: $tool, repository: $repo, branch: $branch, commit_sha: $sha, raw_json: $raw}')
-            curl -s -X POST \
+            HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST \
               "${APEX_API_URL}/api/scan" \
               -H "Content-Type: application/json" \
               -d "$PAYLOAD" \
-              --max-time 30 || echo "⚠ API indisponível — resultado não enviado"
+              --max-time 30)
+            if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+              echo "✅ Scan enviado com sucesso (HTTP $HTTP_CODE)"
+            else
+              echo "❌ Falha ao enviar scan — HTTP $HTTP_CODE"
+              cat /tmp/response.json
+              exit 1
+            fi
           fi
 
       - name: Upload scan artifacts
