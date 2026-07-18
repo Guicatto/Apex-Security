@@ -22,6 +22,15 @@ A Apex Security automatiza o ciclo completo de detecção, priorização e remed
 
 E um **Dashboard React** (identidade visual preto e dourado) que consolida alertas, remediações, pull requests e repositórios.
 
+## Módulos Avançados (consultivos — não substituem os módulos principais)
+
+Complementos que retomam ideias da arquitetura original, agora viáveis porque o banco de produção acumula alertas reais a cada push. **Ambos são aditivos e informativos**: o motor de priorização determinístico ([prioritizer.py](backend/services/prioritizer.py)) continua sendo a fonte oficial e explicável de verdade do sistema.
+
+| Módulo avançado | O que faz | Endpoint |
+|---|---|---|
+| Isolation Forest | Segunda opinião **estatística** — sinaliza alertas que fogem do padrão da base (scikit-learn). Requer ≥ 10 alertas. Não substitui as regras do Módulo 3. | `GET /api/anomaly-analysis` |
+| Intent Checker | Versão **heurística simplificada** do Intent Engine: compara a mensagem do commit com o diff via Gemini e sinaliza divergências. Não integra Jira/Trello e **nunca bloqueia** PRs/merges — apenas informa. | `POST /api/intent-check` |
+
 ## Stack Tecnológico
 
 - **Backend:** Python 3.11.9 + FastAPI + SQLAlchemy

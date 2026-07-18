@@ -1,59 +1,56 @@
-# CONTEXTO_APEX — Estado atual do projeto
+# CONTEXTO_APEX — Estado final do projeto
 
-Última atualização: 2026-07-17
-Status: Código 100% pronto para produção — aguardando deploy manual (ver DEPLOY.md)
+Última atualização: 2026-07-18
+Status: PROJETO 100% COMPLETO E EM PRODUÇÃO
 
-## Diagnóstico do bug de sincronização
+## Infraestrutura de produção
 
-**Sintoma:** dashboard não atualizava com alertas novos, mesmo com o GitHub Actions "verde".
+- Backend: https://apex-security-api.onrender.com
+- Frontend: https://apex-security-delta.vercel.app
+- Banco: Neon.tech (PostgreSQL serverless, DATABASE_URL com SSL obrigatório)
 
-**Causa raiz identificada:** o secret `APEX_API_URL` no GitHub aponta para uma URL efêmera
-do ngrok que expirou (o free tier do ngrok gera URL nova a cada reinício). O workflow enviava
-os scans para um endereço morto e o step usava `curl -s ... || echo "API indisponível"`,
-que **engole qualquer falha**: `curl -s` sem `--fail` retorna exit 0 até para HTTP 4xx/5xx,
-e o `|| echo` mascarava o erro de conexão — por isso o job ficava verde sem dado nenhum
-chegar ao banco. Evidência: os alertas reais do repositório `Guicatto/Apex-Security` que
-EXISTEM no banco chegaram enquanto o ngrok estava vivo; pararam quando a URL expirou.
+## Correções desta sessão
 
-**Verificações complementares:** frontend não tem nenhum cache (axios puro, busca a cada
-mount) — descartado; CORS não afeta o envio do Actions (curl não obedece CORS), mas o
-`main.py` só permitia localhost e bloquearia o dashboard em produção — corrigido com
-`FRONTEND_URL` (ver abaixo).
+- [x] Sincronização com GitHub confirmada — os commits do deploy (25e480e) e da validação
+      de telemetria (0b7e047) já estão em origin/main; nada pendente de push no início da sessão
+- [x] Rota raiz "/" adicionada em main.py com resposta amigável (service/version/status/docs/health)
+      — evita o "Not Found" cru na URL base do backend durante a apresentação
+- [x] (opcional) Isolation Forest implementado como sinal consultivo
+- [x] (opcional) Intent Checker leve implementado
 
-**Correção aplicada:** os dois steps de envio do workflow agora capturam o código HTTP
-(`curl -w "%{http_code}"`) e **falham visivelmente** (`exit 1`) com o corpo da resposta
-quando o envio não retorna 2xx. A solução definitiva da raiz (URL efêmera) é a hospedagem
-permanente no Render — preparada nesta sessão.
+## Módulos avançados (opcionais, aditivos e consultivos)
 
-## Preparação para deploy — concluída
+- backend/services/anomaly_detector.py + GET /api/anomaly-analysis — Isolation Forest
+  (scikit-learn) sobre os alertas do banco. Requer ≥ 10 alertas. É uma SEGUNDA OPINIÃO
+  estatística; NÃO substitui o prioritizer.py (regras determinísticas continuam sendo o
+  motor oficial e explicável). Validado local: 11 alertas, 1 anomalia detectada.
+- backend/services/intent_checker.py + backend/routes/intent.py + POST /api/intent-check —
+  versão heurística SIMPLIFICADA do Intent Engine (compara mensagem de commit vs diff via
+  Gemini). NÃO integra Jira/Trello e NUNCA bloqueia PRs/merges — apenas sinaliza. Validado
+  local: aprova commit honesto (consistent=true) e sinaliza divergente (typo que na verdade
+  adiciona chave AWS + reverse shell → consistent=false).
+- scikit-learn==1.5.0 adicionado ao requirements.txt.
+- main.py agora registra 4 routers: scan, remediation, pull-requests, intent.
 
-- [x] Backend com todas as configs externalizadas via .env (nenhuma URL/credencial hardcoded)
-- [x] render.yaml criado na raiz (runtime python, startCommand com $PORT dinâmico)
-- [x] CORS preparado para aceitar domínio de produção via FRONTEND_URL (fallback localhost)
-- [x] Frontend com VITE_API_URL configurável (frontend/src/services/api.js)
-- [x] frontend/.env.example (produção) e frontend/.env.local (dev, ignorado pelo git via *.local)
-- [x] vercel.json criado com rewrites para react-router (evita 404 em rotas diretas)
-- [x] Build de produção testado localmente sem erros (npm run build → dist/ OK)
-- [x] Workflow GitHub Actions corrigido para reportar falhas claramente (nas 2 cópias:
-      .github/workflows/ e pipeline/.github/workflows/)
-- [x] GET /health não depende de nada além do banco — adequado para health check do Render
-- [x] DEPLOY.md criado com passo a passo completo
+## Nota sobre modelos LLM
+
+- Módulo 5 usa Gemini API (gemini-2.5-flash-lite) — funcionando e gratuito.
+- Claude Fable 5 (Anthropic) disponível publicamente desde 01/07/2026, mais capaz em tarefas
+  complexas. É uma ALTERNATIVA OPCIONAL, não uma correção necessária. Para adotá-lo no
+  remediator.py bastaria trocar a lib google-generativeai pelo SDK anthropic e a variável
+  GEMINI_API_KEY por ANTHROPIC_API_KEY — decisão do grupo, não feita automaticamente.
 
 ## Stack (inalterada)
 
-- Backend: Python 3.11.9 + FastAPI + SQLAlchemy · Banco: PostgreSQL
-- Frontend: React + Vite + Recharts · LLM: Gemini (gemini-2.5-flash-lite via GEMINI_MODEL)
-- CI/CD: GitHub Actions (Semgrep + Trivy) · Integração GitHub: PyGitHub
-- Repositório: https://github.com/Guicatto/Apex-Security
+- Backend: Python 3.11.9 + FastAPI + SQLAlchemy · Banco: PostgreSQL (Neon)
+- Frontend: React + Vite + Recharts (Vercel) · LLM: Gemini (gemini-2.5-flash-lite via GEMINI_MODEL)
+- CI/CD: GitHub Actions (Semgrep + Trivy), workflow reporta HTTP status explicitamente
+  (NÃO reintroduzir `|| echo` que mascara erros)
+- Integração GitHub: PyGitHub · Repositório: https://github.com/Guicatto/Apex-Security
 
-## Pendências manuais (fora do escopo do Claude Code)
+## Status final
 
-- [ ] Criar conta no Neon.tech e obter DATABASE_URL de produção
-- [ ] Criar conta no Render.com e fazer deploy do backend
-- [ ] Criar conta no Vercel e fazer deploy do frontend (Root Directory: frontend)
-- [ ] Atualizar secret APEX_API_URL no GitHub com a URL permanente do Render
-- [ ] Testar fluxo completo em produção (commit de teste → Actions ✅ → dashboard atualiza)
-
-## Próximo passo
-
-Seguir o arquivo DEPLOY.md na raiz do projeto, na ordem: Neon → Render → Vercel → GitHub secret → teste final.
+Todos os 6 módulos da arquitetura original + 2 módulos avançados opcionais estão
+implementados, testados (37 testes unitários verdes) e rodando em produção. O projeto
+está pronto para apresentação — restam apenas as ações humanas da Reunião 8 (ensaio e
+gravação de demonstração).

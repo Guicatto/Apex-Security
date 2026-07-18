@@ -4,6 +4,7 @@ from database import get_db
 from models import Alert, Repository
 from services.normalizer import normalize
 from services.prioritizer import prioritize
+from services.anomaly_detector import train_and_score
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -105,6 +106,18 @@ def get_alert(alert_id: int, db: Session = Depends(get_db)):
     if not alert:
         raise HTTPException(status_code=404, detail="Alerta não encontrado")
     return alert
+
+
+@router.get("/anomaly-analysis")
+def get_anomaly_analysis(db: Session = Depends(get_db)):
+    """
+    Executa o modelo Isolation Forest sobre os alertas atuais
+    e retorna quais sao estatisticamente anomalos.
+    Este e um sinal CONSULTIVO — nao substitui as regras deterministicas
+    do Modulo 3, apenas adiciona uma camada de analise estatistica.
+    """
+    result = train_and_score(db)
+    return result
 
 
 @router.get("/stats")
