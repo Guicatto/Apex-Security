@@ -17,6 +17,11 @@ export const createPR = (alertId) => api.post(`/pull-request/${alertId}`)
 export const getAnomalyAnalysis = () => api.get('/anomaly-analysis')
 export const checkIntent = (commitMessage, codeDiff) =>
   api.post('/intent-check', { commit_message: commitMessage, code_diff: codeDiff })
+export const getCompanyProfile = () => api.get('/company-profile')
+export const saveCompanyProfile = (data) => api.post('/company-profile', data)
+export const createRiskAssessment = (alertId) => api.post(`/risk-assessment/${alertId}`)
+export const getRiskAssessments = () => api.get('/risk-assessments')
+export const getRiskAssessment = (alertId) => api.get(`/risk-assessment/${alertId}`)
 export const getPRs = () => api.get('/pull-requests')
 export const updatePRStatus = (prId, status, approvedBy) =>
   api.patch(`/pull-request/${prId}/status`, null, { params: { status, approved_by: approvedBy } })

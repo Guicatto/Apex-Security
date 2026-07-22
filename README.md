@@ -5,11 +5,22 @@ Projeto acadêmico — FIAP Cibersegurança 2026
 
 ---
 
+## 🔴 Acesse a plataforma ao vivo
+
+**Dashboard:** https://apex-security-delta.vercel.app
+**API / Documentação interativa:** https://apex-security-api.onrender.com/docs
+
+> Nota: o backend usa free tier da Render, que "dorme" após 15 minutos de inatividade.
+> A primeira requisição após um período ocioso pode levar 30-50 segundos para responder
+> enquanto o servidor acorda — isso é esperado e não é um bug.
+
+---
+
 ## O que é
 
 A Apex Security automatiza o ciclo completo de detecção, priorização e remediação de vulnerabilidades de código. O desenvolvedor sobe código, os scanners rodam no pipeline CI/CD, os alertas são normalizados e priorizados por contexto, e a remediação é gerada por LLM (com secrets protegidos por DLP) e entregue como Pull Request — sempre com revisão humana obrigatória antes do merge.
 
-## Arquitetura — 8 Módulos
+## Arquitetura — 9 Módulos
 
 | Módulo | Função | Status |
 |--------|--------|--------|
@@ -21,12 +32,13 @@ A Apex Security automatiza o ciclo completo de detecção, priorização e remed
 | 6 — Pull Request | Branch + commit + PR com revisão humana | ✅ Completo |
 | 7 — Análise de Anomalias | Isolation Forest — sinal estatístico consultivo | ✅ Completo |
 | 8 — Verificador de Intenção | Consistência commit vs código via LLM | ✅ Completo |
+| 9 — Risco Real | Estimativa financeira (FAIR/LGPD) + Blast Radius | ✅ Completo |
 
-E um **Dashboard React** (identidade visual preto e dourado) com 7 páginas: Dashboard, Alertas, Remediações, Pull Requests, Repositórios e — agrupadas sob "Avançados" — Anomalias e Intenção.
+E um **Dashboard React** (identidade visual preto e dourado) com 8 páginas: Dashboard, Alertas, Remediações, Pull Requests, Risco Real, Repositórios e — agrupadas sob "Avançados" — Anomalias e Intenção.
 
-> **Numeração de módulos:** toda funcionalidade nova é documentada como um Módulo numerado sequencialmente (o próximo seria o Módulo 9), mantendo o padrão dos 6 módulos originais da arquitetura.
+> **Numeração de módulos:** toda funcionalidade nova é documentada como um Módulo numerado sequencialmente (o próximo seria o Módulo 10), mantendo o padrão dos 6 módulos originais da arquitetura. A numeração aparece apenas nesta documentação — **nunca na interface visível ao usuário final**.
 
-## Módulos 7 e 8 — consultivos, não substituem os módulos principais
+## Módulos 7, 8 e 9 — consultivos, não substituem os módulos principais
 
 Complementos que retomam ideias da arquitetura original, agora viáveis porque o banco de produção acumula alertas reais a cada push. **Ambos são aditivos e informativos**: o motor de priorização determinístico ([prioritizer.py](backend/services/prioritizer.py)) continua sendo a fonte oficial e explicável de verdade do sistema, e o Módulo 6 continua sendo a governança que exige revisão humana.
 
@@ -34,6 +46,7 @@ Complementos que retomam ideias da arquitetura original, agora viáveis porque o
 |---|---|---|---|
 | 7 — Isolation Forest | Segunda opinião **estatística** — sinaliza alertas que fogem do padrão da base (scikit-learn). Requer ≥ 10 alertas; abaixo disso exibe aviso de volume insuficiente (comportamento esperado, não erro). Não substitui as regras do Módulo 3. | `GET /api/anomaly-analysis` | `/anomaly-analysis` |
 | 8 — Intent Checker | Versão **heurística simplificada** do Intent Engine: compara a mensagem do commit com o diff via Gemini e sinaliza divergências. Não integra Jira/Trello e **nunca bloqueia** PRs/merges — apenas informa. | `POST /api/intent-check` | `/intent-checker` |
+| 9 — Risco Real | Traduz a vulnerabilidade em **impacto financeiro estimado** (modelo FAIR + multa LGPD + custo de inatividade) e desenha o **blast radius** — o caminho plausível de propagação até um ativo crítico. Calibrado pelo Perfil da Empresa. Os valores são **estimativas analíticas de apoio à decisão**, não números contábeis oficiais. | `POST /api/risk-assessment/{id}`, `GET/POST /api/company-profile` | `/real-risk` |
 
 ## Stack Tecnológico
 
@@ -43,9 +56,23 @@ Complementos que retomam ideias da arquitetura original, agora viáveis porque o
 - **CI/CD:** GitHub Actions
 - **Scanners:** Semgrep (SAST) + Trivy (IaC/containers)
 - **LLM:** Gemini API — gemini-2.5-flash-lite
+- **ML:** scikit-learn (Isolation Forest)
+- **Grafo de propagação:** reactflow
 - **Integração GitHub:** PyGitHub
 
-## Como rodar localmente
+## Infraestrutura de produção
+
+| Componente | Serviço | Plano |
+|---|---|---|
+| Backend (API) | Render.com | Free tier |
+| Banco de dados | Neon.tech | Free tier |
+| Frontend (Dashboard) | Vercel | Free tier |
+
+## Para desenvolvedores — rodar localmente
+
+> Esta seção é opcional e destinada a quem quer contribuir com o código ou
+> rodar testes localmente. A plataforma já está disponível publicamente
+> no link acima — não é necessário instalar nada para usá-la.
 
 ### Backend
 
@@ -83,8 +110,13 @@ GEMINI_API_KEY=AIza...
 GEMINI_MODEL=gemini-2.5-flash-lite
 GITHUB_TOKEN=ghp_...
 GITHUB_REPO=Guicatto/Apex-Security
-APEX_API_URL=https://SEU_NGROK.ngrok-free.app
+APEX_API_URL=http://localhost:8000
+FRONTEND_URL=http://localhost:5173
 ```
+
+> Em produção, `APEX_API_URL` aponta para a própria URL do Render
+> (`https://apex-security-api.onrender.com`) e é configurada como secret no GitHub Actions,
+> para que o pipeline envie os resultados dos scanners ao backend hospedado.
 
 O `.env` nunca é commitado (está no `.gitignore`). Use o `backend/.env.example` como template.
 

@@ -5,6 +5,7 @@ import Alerts from './pages/Alerts'
 import PullRequests from './pages/PullRequests'
 import Remediations from './pages/Remediations'
 import Repositories from './pages/Repositories'
+import RealRisk from './pages/RealRisk'
 import AnomalyAnalysis from './pages/AnomalyAnalysis'
 import IntentChecker from './pages/IntentChecker'
 
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/pull-requests" element={<PullRequests />} />
         <Route path="/remediations" element={<Remediations />} />
+        <Route path="/real-risk" element={<RealRisk />} />
         <Route path="/repositories" element={<Repositories />} />
         <Route path="/anomaly-analysis" element={<AnomalyAnalysis />} />
         <Route path="/intent-checker" element={<IntentChecker />} />

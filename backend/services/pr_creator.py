@@ -7,6 +7,33 @@ load_dotenv()
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPO", "Guicatto/Apex-Security")
 
+AUTH_ERROR_MESSAGE = (
+    "Token do GitHub invalido ou expirado — verifique GITHUB_TOKEN "
+    "nas variaveis de ambiente do Render"
+)
+
+
+class GitHubAuthError(Exception):
+    """Credencial do GitHub invalida ou expirada (HTTP 401 Bad credentials)."""
+
+
+def _raise_github_error(e: GithubException, contexto: str):
+    """
+    Converte uma GithubException em erro tipado.
+    401 (Bad credentials) vira GitHubAuthError para que a API possa responder
+    401 e o dashboard exibir uma mensagem de configuracao pendente, em vez de
+    repassar o JSON cru da excecao.
+    """
+    status = getattr(e, "status", None)
+    if status == 401:
+        raise GitHubAuthError(AUTH_ERROR_MESSAGE) from e
+    if status == 403:
+        raise GitHubAuthError(
+            "Token do GitHub sem permissao suficiente — confirme os escopos "
+            "'repo' e 'workflow' e atualize GITHUB_TOKEN nas variaveis de ambiente do Render"
+        ) from e
+    raise RuntimeError(f"{contexto}: {e}")
+
 
 def create_pull_request(
     alert_id: int,
@@ -32,7 +59,7 @@ def create_pull_request(
         g = Github(GITHUB_TOKEN)
         repo = g.get_repo(GITHUB_REPO)
     except GithubException as e:
-        raise RuntimeError(f"Erro ao conectar ao GitHub: {e}")
+        _raise_github_error(e, "Erro ao conectar ao GitHub")
 
     # Criar nome da branch
     branch_name = f"apex/fix-alert-{alert_id}"
@@ -44,7 +71,7 @@ def create_pull_request(
         base_branch = repo.get_branch("main")
         base_sha = base_branch.commit.sha
     except GithubException as e:
-        raise RuntimeError(f"Erro ao obter branch main: {e}")
+        _raise_github_error(e, "Erro ao obter branch main")
 
     # Criar nova branch
     try:
@@ -60,7 +87,7 @@ def create_pull_request(
                 sha=base_sha
             )
         else:
-            raise RuntimeError(f"Erro ao criar branch: {e}")
+            _raise_github_error(e, "Erro ao criar branch")
 
     # Commit do arquivo corrigido
     try:
@@ -81,7 +108,7 @@ def create_pull_request(
                 branch=branch_name
             )
     except GithubException as e:
-        raise RuntimeError(f"Erro ao commitar patch: {e}")
+        _raise_github_error(e, "Erro ao commitar patch")
 
     # Commit do arquivo de teste
     test_file_path = f"tests/apex_generated/test_fix_alert_{alert_id}.py"
@@ -93,7 +120,7 @@ def create_pull_request(
             branch=branch_name
         )
     except GithubException as e:
-        raise RuntimeError(f"Erro ao commitar teste: {e}")
+        _raise_github_error(e, "Erro ao commitar teste")
 
     # Criar o Pull Request
     pr_body = f"""## Apex Security — Correcao Automatica
@@ -121,7 +148,7 @@ def create_pull_request(
             base="main"
         )
     except GithubException as e:
-        raise RuntimeError(f"Erro ao criar Pull Request: {e}")
+        _raise_github_error(e, "Erro ao criar Pull Request")
 
     return {
         "pr_url": pr.html_url,

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import SeverityBadge from '../components/SeverityBadge'
 import Card from '../components/Card'
-import { getAlerts, remediate, createPR } from '../services/api'
+import { getAlerts, remediate, createPR, createRiskAssessment } from '../services/api'
 
 const severities = ['TODAS', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']
 const tools = ['TODAS', 'semgrep', 'trivy']
@@ -45,10 +45,32 @@ export default function Alerts() {
       const res = await createPR(alertId)
       setMessages(p => ({ ...p, [alertId]: `✓ PR criado: ${res.data.pr_url}` }))
     } catch (e) {
-      const msg = e.response?.data?.detail || 'Erro ao criar PR'
-      setMessages(p => ({ ...p, [alertId]: `✗ ${msg}` }))
+      // 401 = credencial do GitHub invalida/expirada: nao e erro do usuario,
+      // e configuracao pendente da equipe. Mensagem diferenciada e amigavel.
+      if (e.response?.status === 401) {
+        setMessages(p => ({
+          ...p,
+          [alertId]: '⚠ Configuração pendente — token do GitHub precisa ser atualizado (ação da equipe)',
+        }))
+      } else {
+        const msg = e.response?.data?.detail || 'Erro ao criar PR'
+        setMessages(p => ({ ...p, [alertId]: `✗ ${msg}` }))
+      }
     } finally {
       setActionLoading(p => ({ ...p, [`pr_${alertId}`]: false }))
+    }
+  }
+
+  const handleMapRisk = async (alertId) => {
+    setActionLoading(p => ({ ...p, [`risk_${alertId}`]: true }))
+    try {
+      await createRiskAssessment(alertId)
+      setMessages(p => ({ ...p, [alertId]: '✓ Risco mapeado — ver aba Risco Real' }))
+    } catch (e) {
+      const msg = e.response?.data?.detail || 'Erro ao mapear risco'
+      setMessages(p => ({ ...p, [alertId]: `✗ ${msg}` }))
+    } finally {
+      setActionLoading(p => ({ ...p, [`risk_${alertId}`]: false }))
     }
   }
 
@@ -185,6 +207,25 @@ export default function Alerts() {
                     }}
                   >
                     {actionLoading[`pr_${alert.id}`] ? 'CRIANDO...' : 'CRIAR PR'}
+                  </button>
+                  <button
+                    onClick={() => handleMapRisk(alert.id)}
+                    disabled={actionLoading[`risk_${alert.id}`]}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid #2A2200',
+                      borderRadius: '6px',
+                      padding: '6px 14px',
+                      color: '#8A7A5A',
+                      fontFamily: 'Raleway',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      letterSpacing: '0.08em',
+                      cursor: 'pointer',
+                      opacity: actionLoading[`risk_${alert.id}`] ? 0.5 : 1,
+                    }}
+                  >
+                    {actionLoading[`risk_${alert.id}`] ? 'MAPEANDO...' : 'MAPEAR RISCO'}
                   </button>
                 </div>
               </div>

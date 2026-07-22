@@ -47,18 +47,17 @@ export default function AnomalyAnalysis() {
           marginBottom: '4px',
         }}>Análise de Anomalias</h1>
         <p style={{ color: '#8A7A5A', fontFamily: 'Raleway', fontSize: '13px' }}>
-          Módulo 7 · Isolation Forest · sinal estatístico consultivo
+          Identificação automática de comportamentos fora do padrão no seu ambiente
         </p>
       </div>
 
       {/* Cabeçalho explicativo — consultivo, não substitui o Módulo 3 */}
       <Card style={{ marginBottom: '24px', borderLeft: '2px solid #8B6914' }}>
         <p style={{ fontFamily: 'Inter', fontSize: '13px', color: '#F0E6C8', lineHeight: 1.7 }}>
-          O Módulo 7 aplica um algoritmo de Machine Learning não-supervisionado (Isolation Forest)
+          Esta análise aplica um algoritmo de Machine Learning não-supervisionado (Isolation Forest)
           sobre o conjunto atual de alertas, identificando quais fogem estatisticamente do padrão.
           Este é um <strong style={{ color: '#E8C97A' }}>sinal consultivo</strong> — a priorização
-          oficial de severidade continua sendo feita pelo Módulo 3 (regras determinísticas de
-          contexto IaC).
+          oficial de severidade continua sendo feita pelas regras determinísticas de contexto IaC.
         </p>
       </Card>
 

@@ -75,16 +75,16 @@ export default function IntentChecker() {
           marginBottom: '4px',
         }}>Verificador de Intenção</h1>
         <p style={{ color: '#8A7A5A', fontFamily: 'Raleway', fontSize: '13px' }}>
-          Módulo 8 · Intent Checker · alerta informativo sob demanda
+          Verifique se o código de um commit realmente corresponde ao que foi declarado
         </p>
       </div>
 
       {/* Cabeçalho explicativo — informativo, nunca bloqueia */}
       <Card style={{ marginBottom: '24px', borderLeft: '2px solid #8B6914' }}>
         <p style={{ fontFamily: 'Inter', fontSize: '13px', color: '#F0E6C8', lineHeight: 1.7 }}>
-          O Módulo 8 é uma versão simplificada do conceito de auditoria de intenção: compara a
-          mensagem de commit declarada com o código real alterado, usando IA generativa para
-          identificar divergências suspeitas. Este é um{' '}
+          Esta é uma verificação de auditoria de intenção: compara a mensagem de commit declarada
+          com o código real alterado, usando IA generativa para identificar divergências suspeitas.
+          Este é um{' '}
           <strong style={{ color: '#E8C97A' }}>alerta informativo</strong> — nunca bloqueia
           Pull Requests ou merges automaticamente.
         </p>

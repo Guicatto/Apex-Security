@@ -5,6 +5,7 @@ const navItems = [
   { path: '/alerts', label: 'Alertas', icon: '⚠' },
   { path: '/remediations', label: 'Remediações', icon: '⚕' },
   { path: '/pull-requests', label: 'Pull Requests', icon: '⟲' },
+  { path: '/real-risk', label: 'Risco Real', icon: '◆' },
   { path: '/repositories', label: 'Repositórios', icon: '◉' },
   // Módulos avançados (consultivos) — separados visualmente na navegação
   { path: '/anomaly-analysis', label: 'Anomalias', icon: '✦', advanced: true },

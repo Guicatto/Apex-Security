@@ -6,6 +6,7 @@ from routes.scan import router as scan_router
 from routes.remediate import router as remediate_router
 from routes.pullrequest import router as pr_router
 from routes.intent import router as intent_router
+from routes.risk import router as risk_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -33,6 +34,7 @@ app.include_router(scan_router, prefix="/api", tags=["scan"])
 app.include_router(remediate_router, prefix="/api", tags=["remediation"])
 app.include_router(pr_router, prefix="/api", tags=["pull-requests"])
 app.include_router(intent_router, prefix="/api", tags=["intent"])
+app.include_router(risk_router, prefix="/api", tags=["risk"])
 
 
 @app.on_event("startup")

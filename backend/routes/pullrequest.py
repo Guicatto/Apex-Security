@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Alert, Remediation, PullRequest
-from services.pr_creator import create_pull_request
+from services.pr_creator import create_pull_request, GitHubAuthError
 from datetime import datetime
 
 router = APIRouter()
@@ -45,6 +45,10 @@ def create_pr(alert_id: int, db: Session = Depends(get_db)):
             pr_description=remediation.pr_description,
             alert_title=alert.title
         )
+    except GitHubAuthError as e:
+        # 401 dedicado: credencial do GitHub invalida/expirada. O dashboard usa
+        # este status para exibir "configuracao pendente" em vez de erro tecnico.
+        raise HTTPException(status_code=401, detail=str(e))
     except EnvironmentError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except RuntimeError as e:

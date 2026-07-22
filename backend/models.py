@@ -41,6 +41,38 @@ class Remediation(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class CompanyProfile(Base):
+    """
+    Perfil da empresa usado para calibrar a estimativa de risco financeiro.
+    Mantem uma UNICA linha; todos os campos tem default seguro, entao a
+    analise nunca quebra por falta de preenchimento do usuario.
+    """
+    __tablename__ = "company_profile"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sector = Column(String(100), default="Tecnologia / Software")
+    annual_revenue = Column(String(50), default="R$ 5.000.000,00")
+    sensitive_data_volume = Column(String(100), default="Médio — até 50 mil registros")
+    regulations = Column(Text, default="LGPD")
+    operational_context = Column(Text, default="")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class RiskAssessment(Base):
+    __tablename__ = "risk_assessments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    alert_id = Column(Integer, nullable=False)
+    financial_impact_min = Column(String(50))
+    financial_impact_max = Column(String(50))
+    financial_impact_currency = Column(String(10), default="BRL")
+    fair_reasoning = Column(Text)
+    lgpd_fine_estimate = Column(String(50))
+    downtime_cost_estimate = Column(String(50))
+    blast_radius_json = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class PullRequest(Base):
     __tablename__ = "pull_requests"
 
