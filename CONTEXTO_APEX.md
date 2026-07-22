@@ -1,7 +1,36 @@
 # CONTEXTO_APEX — Estado final do projeto
 
-Última atualização: 2026-07-18
-Status: PROJETO 100% COMPLETO E EM PRODUÇÃO
+Última atualização: 2026-07-22
+Status: PROJETO 100% COMPLETO E EM PRODUÇÃO — 8 módulos com interface visual
+
+## Sistema de numeração de módulos (padrão oficial)
+
+Toda funcionalidade nova adicionada ao projeto é documentada como um **Módulo numerado
+sequencialmente**, mantendo o padrão dos 6 módulos originais da arquitetura. Aplicado
+retroativamente: Módulo 7 = Isolation Forest, Módulo 8 = Intent Checker. A próxima adição
+será o Módulo 9. Sempre que um módulo novo entrar, atualizar a tabela de módulos no
+README.md e esta seção.
+
+## Interface visual dos Módulos 7 e 8 (sessão de 2026-07-22)
+
+- frontend/src/pages/AnomalyAnalysis.jsx — rota `/anomaly-analysis`. Cabeçalho explicativo
+  reforçando que é SINAL CONSULTIVO (Módulo 3 segue oficial), cards de status do modelo
+  (treinado / total analisado / anomalias), scatter plot Recharts com anomalias em dourado
+  brilhante (#E8C97A com glow) vs normais (#8A7A5A), lista de alertas anômalos com badge ⟡
+  e borda dourada, botão "Reexecutar Análise". Caso `trained: false` (< 10 alertas) exibe
+  aviso elegante de volume insuficiente — não é tratado como erro.
+- frontend/src/pages/IntentChecker.jsx — rota `/intent-checker`. Cabeçalho explicativo
+  reforçando que é ALERTA INFORMATIVO (nunca bloqueia PR/merge), formulário de duas colunas
+  (input + textarea em JetBrains Mono), botões de exemplo pré-preenchido (commit honesto /
+  commit suspeito), badge de resultado CONSISTENTE (verde #1A6B3C) ou DIVERGÊNCIA DETECTADA
+  (vermelho #C0392B), percentual de confiança e card com a explicação.
+- frontend/src/services/api.js — `getAnomalyAnalysis()` e `checkIntent(msg, diff)`.
+- frontend/src/App.jsx — rotas registradas. frontend/src/components/Layout.jsx — itens de nav
+  "Anomalias" (✦) e "Intenção" (⟡) agrupados após um separador discreto "AVANÇADOS", para
+  distinguir visualmente os módulos consultivos dos operacionais.
+- Validado com API real: M7 exibiu 11 alertas analisados / 1 anomalia (Alerta #1, score
+  -0.0249); M8 retornou "✗ DIVERGÊNCIA DETECTADA" (100%) no exemplo suspeito e
+  "✓ CONSISTENTE" (100%) no honesto. Build de produção OK (647 módulos), console limpo.
 
 ## Infraestrutura de produção
 
@@ -50,7 +79,7 @@ Status: PROJETO 100% COMPLETO E EM PRODUÇÃO
 
 ## Status final
 
-Todos os 6 módulos da arquitetura original + 2 módulos avançados opcionais estão
-implementados, testados (37 testes unitários verdes) e rodando em produção. O projeto
-está pronto para apresentação — restam apenas as ações humanas da Reunião 8 (ensaio e
-gravação de demonstração).
+Os 8 módulos (6 originais + Módulo 7 Isolation Forest + Módulo 8 Intent Checker) estão
+implementados, testados (37 testes unitários verdes) e rodando em produção — agora todos
+com interface visual dedicada no dashboard. O projeto está pronto para apresentação —
+restam apenas as ações humanas da Reunião 8 (ensaio e gravação de demonstração).

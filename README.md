@@ -9,7 +9,7 @@ Projeto acadêmico — FIAP Cibersegurança 2026
 
 A Apex Security automatiza o ciclo completo de detecção, priorização e remediação de vulnerabilidades de código. O desenvolvedor sobe código, os scanners rodam no pipeline CI/CD, os alertas são normalizados e priorizados por contexto, e a remediação é gerada por LLM (com secrets protegidos por DLP) e entregue como Pull Request — sempre com revisão humana obrigatória antes do merge.
 
-## Arquitetura — 6 Módulos
+## Arquitetura — 8 Módulos
 
 | Módulo | Função | Status |
 |--------|--------|--------|
@@ -19,17 +19,21 @@ A Apex Security automatiza o ciclo completo de detecção, priorização e remed
 | 4 — DLP de Borda | Ofuscação de secrets via Regex | ✅ Completo |
 | 5 — Remediação Gemini | Patch + teste unitário automático | ✅ Completo |
 | 6 — Pull Request | Branch + commit + PR com revisão humana | ✅ Completo |
+| 7 — Análise de Anomalias | Isolation Forest — sinal estatístico consultivo | ✅ Completo |
+| 8 — Verificador de Intenção | Consistência commit vs código via LLM | ✅ Completo |
 
-E um **Dashboard React** (identidade visual preto e dourado) que consolida alertas, remediações, pull requests e repositórios.
+E um **Dashboard React** (identidade visual preto e dourado) com 7 páginas: Dashboard, Alertas, Remediações, Pull Requests, Repositórios e — agrupadas sob "Avançados" — Anomalias e Intenção.
 
-## Módulos Avançados (consultivos — não substituem os módulos principais)
+> **Numeração de módulos:** toda funcionalidade nova é documentada como um Módulo numerado sequencialmente (o próximo seria o Módulo 9), mantendo o padrão dos 6 módulos originais da arquitetura.
 
-Complementos que retomam ideias da arquitetura original, agora viáveis porque o banco de produção acumula alertas reais a cada push. **Ambos são aditivos e informativos**: o motor de priorização determinístico ([prioritizer.py](backend/services/prioritizer.py)) continua sendo a fonte oficial e explicável de verdade do sistema.
+## Módulos 7 e 8 — consultivos, não substituem os módulos principais
 
-| Módulo avançado | O que faz | Endpoint |
-|---|---|---|
-| Isolation Forest | Segunda opinião **estatística** — sinaliza alertas que fogem do padrão da base (scikit-learn). Requer ≥ 10 alertas. Não substitui as regras do Módulo 3. | `GET /api/anomaly-analysis` |
-| Intent Checker | Versão **heurística simplificada** do Intent Engine: compara a mensagem do commit com o diff via Gemini e sinaliza divergências. Não integra Jira/Trello e **nunca bloqueia** PRs/merges — apenas informa. | `POST /api/intent-check` |
+Complementos que retomam ideias da arquitetura original, agora viáveis porque o banco de produção acumula alertas reais a cada push. **Ambos são aditivos e informativos**: o motor de priorização determinístico ([prioritizer.py](backend/services/prioritizer.py)) continua sendo a fonte oficial e explicável de verdade do sistema, e o Módulo 6 continua sendo a governança que exige revisão humana.
+
+| Módulo | O que faz | Endpoint | Página |
+|---|---|---|---|
+| 7 — Isolation Forest | Segunda opinião **estatística** — sinaliza alertas que fogem do padrão da base (scikit-learn). Requer ≥ 10 alertas; abaixo disso exibe aviso de volume insuficiente (comportamento esperado, não erro). Não substitui as regras do Módulo 3. | `GET /api/anomaly-analysis` | `/anomaly-analysis` |
+| 8 — Intent Checker | Versão **heurística simplificada** do Intent Engine: compara a mensagem do commit com o diff via Gemini e sinaliza divergências. Não integra Jira/Trello e **nunca bloqueia** PRs/merges — apenas informa. | `POST /api/intent-check` | `/intent-checker` |
 
 ## Stack Tecnológico
 

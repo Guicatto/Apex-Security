@@ -6,6 +6,9 @@ const navItems = [
   { path: '/remediations', label: 'Remediações', icon: '⚕' },
   { path: '/pull-requests', label: 'Pull Requests', icon: '⟲' },
   { path: '/repositories', label: 'Repositórios', icon: '◉' },
+  // Módulos avançados (consultivos) — separados visualmente na navegação
+  { path: '/anomaly-analysis', label: 'Anomalias', icon: '✦', advanced: true },
+  { path: '/intent-checker', label: 'Intenção', icon: '⟡', advanced: true },
 ]
 
 export default function Layout({ children }) {
@@ -40,12 +43,31 @@ export default function Layout({ children }) {
         </div>
 
         {/* Nav */}
-        <nav style={{ display: 'flex', gap: '4px' }}>
-          {navItems.map(item => {
+        <nav style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+          {navItems.map((item, idx) => {
             const isActive = location.pathname === item.path
+            const isFirstAdvanced = item.advanced && !navItems[idx - 1]?.advanced
             return (
+              <span key={item.path} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {isFirstAdvanced && (
+                  <span style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    margin: '0 6px 0 8px',
+                  }}>
+                    <span style={{ width: '1px', height: '20px', background: '#2A2200' }} />
+                    <span style={{
+                      fontFamily: "'Raleway', sans-serif",
+                      fontSize: '8px',
+                      color: '#8B6914',
+                      letterSpacing: '0.2em',
+                      writingMode: 'horizontal-tb',
+                      whiteSpace: 'nowrap',
+                    }}>AVANÇADOS</span>
+                  </span>
+                )}
               <button
-                key={item.path}
                 onClick={() => navigate(item.path)}
                 style={{
                   background: isActive ? 'rgba(201, 168, 76, 0.1)' : 'transparent',
@@ -79,6 +101,7 @@ export default function Layout({ children }) {
                 <span style={{ fontSize: '12px', opacity: 0.7 }}>{item.icon}</span>
                 {item.label}
               </button>
+              </span>
             )
           })}
         </nav>

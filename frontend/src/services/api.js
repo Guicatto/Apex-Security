@@ -14,6 +14,9 @@ export const remediate = (alertId) => api.post(`/remediate/${alertId}`)
 export const getRemediation = (alertId) => api.get(`/remediations/${alertId}`)
 export const getRemediations = () => api.get('/remediations')
 export const createPR = (alertId) => api.post(`/pull-request/${alertId}`)
+export const getAnomalyAnalysis = () => api.get('/anomaly-analysis')
+export const checkIntent = (commitMessage, codeDiff) =>
+  api.post('/intent-check', { commit_message: commitMessage, code_diff: codeDiff })
 export const getPRs = () => api.get('/pull-requests')
 export const updatePRStatus = (prId, status, approvedBy) =>
   api.patch(`/pull-request/${prId}/status`, null, { params: { status, approved_by: approvedBy } })
