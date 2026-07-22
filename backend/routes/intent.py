@@ -1,6 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from services.intent_checker import check_intent_consistency
+from services.auth import get_current_user
+from models import User
 
 router = APIRouter()
 
@@ -11,7 +13,7 @@ class IntentCheckPayload(BaseModel):
 
 
 @router.post("/intent-check")
-def check_intent(payload: IntentCheckPayload):
+def check_intent(payload: IntentCheckPayload, current_user: User = Depends(get_current_user)):
     """
     Verificador leve de consistencia entre mensagem de commit e diff real.
     Versao simplificada do Intent Engine da arquitetura original —

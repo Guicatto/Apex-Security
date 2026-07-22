@@ -10,11 +10,20 @@ const navItems = [
   // Módulos avançados (consultivos) — separados visualmente na navegação
   { path: '/anomaly-analysis', label: 'Anomalias', icon: '✦', advanced: true },
   { path: '/intent-checker', label: 'Intenção', icon: '⟡', advanced: true },
+  { path: '/radar', label: 'Radar', icon: '◎', advanced: true },
 ]
 
 export default function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
+  const companyName = localStorage.getItem('company_name')
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('api_key')
+    localStorage.removeItem('company_name')
+    navigate('/login')
+  }
 
   return (
     <div style={{
@@ -107,21 +116,43 @@ export default function Layout({ children }) {
           })}
         </nav>
 
-        {/* Status */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            background: '#1A6B3C',
-            boxShadow: '0 0 6px rgba(26, 107, 60, 0.8)',
-          }} />
-          <span style={{
-            fontFamily: "'Raleway', sans-serif",
-            fontSize: '11px',
-            color: '#8A7A5A',
-            letterSpacing: '0.1em',
-          }}>SISTEMA ATIVO</span>
+        {/* Status + conta */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              background: '#1A6B3C',
+              boxShadow: '0 0 6px rgba(26, 107, 60, 0.8)',
+            }} />
+            <span style={{
+              fontFamily: "'Raleway', sans-serif",
+              fontSize: '11px',
+              color: '#8A7A5A',
+              letterSpacing: '0.1em',
+            }}>{companyName || 'SISTEMA ATIVO'}</span>
+          </div>
+          <button
+            onClick={handleLogout}
+            style={{
+              background: 'transparent',
+              border: '1px solid #2A2200',
+              borderRadius: '6px',
+              padding: '5px 12px',
+              color: '#8A7A5A',
+              fontFamily: "'Raleway', sans-serif",
+              fontSize: '10px',
+              fontWeight: '600',
+              letterSpacing: '0.1em',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#C9A84C'; e.currentTarget.style.color = '#C9A84C' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A2200'; e.currentTarget.style.color = '#8A7A5A' }}
+          >
+            SAIR
+          </button>
         </div>
 
         {/* Linha dourada embaixo do header */}

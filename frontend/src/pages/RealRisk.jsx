@@ -28,6 +28,14 @@ const nodeColors = {
   critical_asset: { bg: 'rgba(232, 201, 122, 0.15)', border: '#E8C97A', text: '#E8C97A' },
 }
 
+// Cores do nivel de risco de compliance (SLA)
+const complianceColors = {
+  BAIXO: '#1A6B3C',
+  MEDIO: '#C9A84C',
+  ALTO: '#D35400',
+  CRITICO: '#C0392B',
+}
+
 const labelStyle = {
   fontFamily: 'Raleway',
   fontSize: '11px',
@@ -298,30 +306,41 @@ export default function RealRisk() {
                     }}>ALERTA #{a.alert_id}</span>
                   </div>
 
-                  {/* Impacto financeiro em destaque */}
-                  <div style={{
-                    background: 'linear-gradient(135deg, #1A1400 0%, #111111 100%)',
-                    border: '1px solid #C9A84C40',
-                    borderRadius: '12px',
-                    padding: '20px 24px',
-                    marginBottom: '20px',
-                  }}>
+                  {/* Impacto financeiro em destaque (so quando o risco foi mapeado) */}
+                  {a.financial_impact_min ? (
                     <div style={{
-                      fontFamily: 'Raleway', fontSize: '11px', color: '#8A7A5A',
-                      letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '10px',
-                    }}>Impacto financeiro estimado</div>
-                    <div style={{
-                      fontFamily: "'Cinzel', serif",
-                      fontSize: '26px',
-                      fontWeight: '700',
-                      color: '#E8C97A',
-                      lineHeight: 1.3,
+                      background: 'linear-gradient(135deg, #1A1400 0%, #111111 100%)',
+                      border: '1px solid #C9A84C40',
+                      borderRadius: '12px',
+                      padding: '20px 24px',
+                      marginBottom: '20px',
                     }}>
-                      {a.financial_impact_min} — {a.financial_impact_max}
+                      <div style={{
+                        fontFamily: 'Raleway', fontSize: '11px', color: '#8A7A5A',
+                        letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '10px',
+                      }}>Impacto financeiro estimado</div>
+                      <div style={{
+                        fontFamily: "'Cinzel', serif",
+                        fontSize: '26px',
+                        fontWeight: '700',
+                        color: '#E8C97A',
+                        lineHeight: 1.3,
+                      }}>
+                        {a.financial_impact_min} — {a.financial_impact_max}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div style={{
+                      background: '#0A0A0A', border: '1px solid #2A2200', borderRadius: '8px',
+                      padding: '14px 16px', marginBottom: '20px',
+                      fontFamily: 'Inter', fontSize: '12px', color: '#8A7A5A',
+                    }}>
+                      Estimativa financeira ainda não gerada — clique em "Mapear Risco" na aba Alertas.
+                    </div>
+                  )}
 
                   {/* LGPD + downtime */}
+                  {a.financial_impact_min && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
                     <div style={{ background: '#0A0A0A', border: '1px solid #2A2200', borderRadius: '8px', padding: '14px 16px' }}>
                       <div style={{ fontFamily: 'Raleway', fontSize: '10px', color: '#8A7A5A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '6px' }}>Multa LGPD estimada</div>
@@ -332,18 +351,65 @@ export default function RealRisk() {
                       <div style={{ fontFamily: 'JetBrains Mono', fontSize: '14px', color: '#F0E6C8' }}>{a.downtime_cost_estimate || '—'}</div>
                     </div>
                   </div>
+                  )}
+
+                  {/* SLA de Compliance — só aparece depois de calculado */}
+                  {a.sla_deadline && (
+                    <div style={{
+                      background: '#0A0A0A',
+                      border: `1px solid ${(complianceColors[a.compliance_risk_level] || '#2A2200')}40`,
+                      borderRadius: '8px',
+                      padding: '16px 18px',
+                      marginBottom: '20px',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '10px' }}>
+                        <div style={{
+                          fontFamily: 'Raleway', fontSize: '10px', color: '#8A7A5A',
+                          letterSpacing: '0.15em', textTransform: 'uppercase',
+                        }}>Prazo de correção (SLA)</div>
+                        {a.compliance_risk_level && (
+                          <span style={{
+                            background: `${complianceColors[a.compliance_risk_level] || '#8A7A5A'}20`,
+                            color: complianceColors[a.compliance_risk_level] || '#8A7A5A',
+                            border: `1px solid ${complianceColors[a.compliance_risk_level] || '#8A7A5A'}40`,
+                            borderRadius: '4px',
+                            padding: '2px 8px',
+                            fontSize: '10px',
+                            fontFamily: 'Raleway',
+                            fontWeight: '700',
+                            letterSpacing: '0.1em',
+                          }}>RISCO DE COMPLIANCE: {a.compliance_risk_level}</span>
+                        )}
+                      </div>
+                      <div style={{
+                        fontFamily: "'Cinzel', serif",
+                        fontSize: '20px',
+                        fontWeight: '700',
+                        color: '#E8C97A',
+                        marginBottom: '10px',
+                      }}>{a.sla_deadline}</div>
+                      {a.sla_reasoning && (
+                        <p style={{ fontFamily: 'Inter', fontSize: '12px', color: '#8A7A5A', lineHeight: 1.7 }}>
+                          {a.sla_reasoning}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Raciocínio FAIR */}
-                  <div style={{ marginBottom: '20px' }}>
-                    <div style={{ fontFamily: 'Raleway', fontSize: '11px', fontWeight: '600', color: '#8A7A5A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '8px' }}>
-                      Raciocínio da estimativa (FAIR)
+                  {a.fair_reasoning && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <div style={{ fontFamily: 'Raleway', fontSize: '11px', fontWeight: '600', color: '#8A7A5A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                        Raciocínio da estimativa (FAIR)
+                      </div>
+                      <p style={{ fontFamily: 'Inter', fontSize: '13px', color: '#F0E6C8', lineHeight: 1.7 }}>
+                        {a.fair_reasoning}
+                      </p>
                     </div>
-                    <p style={{ fontFamily: 'Inter', fontSize: '13px', color: '#F0E6C8', lineHeight: 1.7 }}>
-                      {a.fair_reasoning}
-                    </p>
-                  </div>
+                  )}
 
                   {/* Blast radius */}
+                  {a.blast_radius?.nodes?.length > 0 && (
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                       <div style={{ fontFamily: 'Raleway', fontSize: '11px', fontWeight: '600', color: '#8A7A5A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
@@ -357,6 +423,7 @@ export default function RealRisk() {
                     </div>
                     <BlastRadius blastRadius={a.blast_radius} />
                   </div>
+                  )}
                 </Card>
               ))}
             </div>

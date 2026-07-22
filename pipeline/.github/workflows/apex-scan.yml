@@ -60,6 +60,10 @@ jobs:
         if: steps.semgrep.outputs.semgrep_done == 'true'
         env:
           APEX_API_URL: ${{ secrets.APEX_API_URL }}
+          # Chave pessoal da conta Apex — cada usuario gera a sua no signup e
+          # cadastra como secret APEX_USER_API_KEY no proprio repositorio.
+          # Sem ela, os alertas entram como dados legados/demo (sem conta).
+          APEX_USER_API_KEY: ${{ secrets.APEX_USER_API_KEY }}
         run: |
           if [ -f semgrep-results.json ]; then
             PAYLOAD=$(jq -n \
@@ -72,6 +76,7 @@ jobs:
             HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST \
               "${APEX_API_URL}/api/scan" \
               -H "Content-Type: application/json" \
+              -H "X-Apex-Api-Key: ${APEX_USER_API_KEY}" \
               -d "$PAYLOAD" \
               --max-time 30)
             if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
@@ -87,6 +92,10 @@ jobs:
         if: steps.trivy.outputs.trivy_done == 'true'
         env:
           APEX_API_URL: ${{ secrets.APEX_API_URL }}
+          # Chave pessoal da conta Apex — cada usuario gera a sua no signup e
+          # cadastra como secret APEX_USER_API_KEY no proprio repositorio.
+          # Sem ela, os alertas entram como dados legados/demo (sem conta).
+          APEX_USER_API_KEY: ${{ secrets.APEX_USER_API_KEY }}
         run: |
           if [ -f trivy-results.json ]; then
             PAYLOAD=$(jq -n \
@@ -99,6 +108,7 @@ jobs:
             HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST \
               "${APEX_API_URL}/api/scan" \
               -H "Content-Type: application/json" \
+              -H "X-Apex-Api-Key: ${APEX_USER_API_KEY}" \
               -d "$PAYLOAD" \
               --max-time 30)
             if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then

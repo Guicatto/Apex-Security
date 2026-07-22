@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import SeverityBadge from '../components/SeverityBadge'
 import Card from '../components/Card'
-import { getAlerts, remediate, createPR, createRiskAssessment } from '../services/api'
+import { getAlerts, remediate, createPR, createRiskAssessment, createSLAAssessment } from '../services/api'
 
 const severities = ['TODAS', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']
 const tools = ['TODAS', 'semgrep', 'trivy']
@@ -71,6 +71,19 @@ export default function Alerts() {
       setMessages(p => ({ ...p, [alertId]: `✗ ${msg}` }))
     } finally {
       setActionLoading(p => ({ ...p, [`risk_${alertId}`]: false }))
+    }
+  }
+
+  const handleViewSLA = async (alertId) => {
+    setActionLoading(p => ({ ...p, [`sla_${alertId}`]: true }))
+    try {
+      await createSLAAssessment(alertId)
+      setMessages(p => ({ ...p, [alertId]: '✓ SLA calculado — ver aba Risco Real' }))
+    } catch (e) {
+      const msg = e.response?.data?.detail || 'Erro ao calcular SLA'
+      setMessages(p => ({ ...p, [alertId]: `✗ ${msg}` }))
+    } finally {
+      setActionLoading(p => ({ ...p, [`sla_${alertId}`]: false }))
     }
   }
 
@@ -226,6 +239,25 @@ export default function Alerts() {
                     }}
                   >
                     {actionLoading[`risk_${alert.id}`] ? 'MAPEANDO...' : 'MAPEAR RISCO'}
+                  </button>
+                  <button
+                    onClick={() => handleViewSLA(alert.id)}
+                    disabled={actionLoading[`sla_${alert.id}`]}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid #2A2200',
+                      borderRadius: '6px',
+                      padding: '6px 14px',
+                      color: '#8A7A5A',
+                      fontFamily: 'Raleway',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      letterSpacing: '0.08em',
+                      cursor: 'pointer',
+                      opacity: actionLoading[`sla_${alert.id}`] ? 0.5 : 1,
+                    }}
+                  >
+                    {actionLoading[`sla_${alert.id}`] ? 'CALCULANDO...' : 'VER SLA'}
                   </button>
                 </div>
               </div>

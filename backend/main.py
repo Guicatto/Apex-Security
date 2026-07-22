@@ -1,14 +1,17 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import Base, engine, test_connection
+from database import Base, engine, test_connection, run_additive_migrations
 from routes.scan import router as scan_router
 from routes.remediate import router as remediate_router
 from routes.pullrequest import router as pr_router
 from routes.intent import router as intent_router
 from routes.risk import router as risk_router
+from routes.auth import router as auth_router
 
 Base.metadata.create_all(bind=engine)
+# create_all cria tabelas novas mas nao altera as existentes — aplica as colunas novas
+run_additive_migrations()
 
 app = FastAPI(
     title="Apex Security API",
@@ -30,6 +33,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router, prefix="/api", tags=["auth"])
 app.include_router(scan_router, prefix="/api", tags=["scan"])
 app.include_router(remediate_router, prefix="/api", tags=["remediation"])
 app.include_router(pr_router, prefix="/api", tags=["pull-requests"])

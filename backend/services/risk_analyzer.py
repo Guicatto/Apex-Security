@@ -85,3 +85,47 @@ Gere a analise de risco completa conforme o formato especificado."""
         raise ValueError(f"Gemini retornou resposta invalida: {e}")
     except Exception as e:
         raise RuntimeError(f"Erro na chamada ao Gemini: {e}")
+
+
+SLA_SYSTEM_PROMPT = """Voce e um especialista em compliance e gestao de prazos de correcao
+de vulnerabilidades, com conhecimento de LGPD, ISO 27001 e praticas de mercado.
+
+Retorne APENAS um JSON valido:
+{
+  "sla_deadline": "prazo em formato claro, ex: '72 horas' ou '15 dias uteis'",
+  "sla_reasoning": "explicacao clara em portugues do porque desse prazo, considerando setor e regulamentacoes",
+  "compliance_risk_level": "BAIXO, MEDIO, ALTO ou CRITICO"
+}
+
+Considere: vulnerabilidades CRITICAL/HIGH em setores regulados (saude, financeiro) ou que exponham dados
+pessoais exigem prazos mais curtos. A LGPD nao define prazo tecnico fixo para correcao, mas
+o tempo de exposicao afeta diretamente a responsabilidade em caso de incidente."""
+
+
+def analyze_sla(alert_title: str, alert_severity: str, company_profile: dict) -> dict:
+    """
+    Estima o prazo de correcao (SLA) e o nivel de risco de compliance.
+    Assim como a estimativa financeira, e uma orientacao analitica de apoio
+    a decisao — nao um prazo legal oficial.
+    """
+    model = genai.GenerativeModel(
+        model_name=GEMINI_MODEL,
+        system_instruction=SLA_SYSTEM_PROMPT
+    )
+
+    prompt = f"""VULNERABILIDADE: {alert_title}
+SEVERIDADE: {alert_severity}
+
+PERFIL DA EMPRESA:
+Setor: {company_profile.get('sector')}
+Regulamentacoes: {company_profile.get('regulations')}
+Volume de dados sensiveis: {company_profile.get('sensitive_data_volume')}
+
+Calcule o prazo SLA de correcao."""
+
+    try:
+        response = model.generate_content(prompt)
+        raw = response.text.strip().replace("```json", "").replace("```", "").strip()
+        return json.loads(raw)
+    except Exception as e:
+        raise RuntimeError(f"Erro na analise de SLA: {e}")

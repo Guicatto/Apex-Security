@@ -1,0 +1,44 @@
+import os
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+load_dotenv()
+
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+# HONESTIDADE TECNICA: o Gemini, na configuracao atual do projeto, NAO faz busca
+# ao vivo na internet. O relatorio e uma sintese do conhecimento ja presente no
+# modelo — a interface deixa isso explicito para nao prometer "tempo real".
+
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+
+RADAR_SYSTEM_PROMPT = """Voce e um analista de threat intelligence senior. Com base no seu
+conhecimento sobre tendencias de ciberseguranca, gere um panorama executivo para uma empresa
+especifica, cobrindo:
+
+1. As 3-5 categorias de ameacas mais relevantes para o SETOR informado
+2. Tipos de vulnerabilidades comumente exploradas em empresas com o PERFIL DE DADOS informado
+3. Recomendacoes praticas de prevencao, priorizadas
+
+Retorne em texto corrido bem estruturado com subtitulos claros, em portugues, tom executivo
+e direto. Nao invente CVEs especificos ou datas — fale em termos de categorias e vetores de
+ameaca consistentes com seu conhecimento geral de seguranca da informacao."""
+
+
+def generate_radar_report(company_profile: dict) -> str:
+    model = genai.GenerativeModel(
+        model_name=GEMINI_MODEL,
+        system_instruction=RADAR_SYSTEM_PROMPT
+    )
+
+    prompt = f"""PERFIL DA EMPRESA:
+Setor: {company_profile.get('sector')}
+Faturamento anual: {company_profile.get('annual_revenue')}
+Volume de dados sensiveis: {company_profile.get('sensitive_data_volume')}
+Regulamentacoes: {company_profile.get('regulations')}
+Contexto operacional: {company_profile.get('operational_context') or 'Nao fornecido'}
+
+Gere o panorama executivo de ameacas para esta empresa."""
+
+    response = model.generate_content(prompt)
+    return response.text.strip()

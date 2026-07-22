@@ -1,7 +1,62 @@
 # CONTEXTO_APEX — Estado final do projeto
 
 Última atualização: 2026-07-22
-Status: PROJETO 100% COMPLETO E EM PRODUÇÃO — 9 módulos com interface visual
+Status: PROJETO 100% COMPLETO E EM PRODUÇÃO — 11 módulos com interface visual
+
+## Módulo 10 — Autenticação e Multi-tenant (sessão de 2026-07-22)
+
+Cada conta vê apenas os próprios dados. Mudança estrutural: tocou em todas as tabelas e rotas.
+
+- `models.py` — nova tabela `users` (email, hashed_password, company_name, api_key gerada
+  automaticamente com `secrets.token_hex(32)`). Coluna `user_id` (nullable=True, indexada)
+  em alerts, repositories, remediations, pull_requests, company_profile e risk_assessments.
+- `services/auth.py` — hash bcrypt (passlib), JWT HS256 válido por 7 dias, `get_current_user`
+  (dependência das rotas) e `get_user_by_api_key` (usado pelo pipeline).
+- `routes/auth.py` — `POST /api/auth/signup`, `POST /api/auth/login`, `GET /api/auth/me`.
+- **Todas** as rotas de scan/remediate/pullrequest/risk/intent exigem JWT e filtram por
+  `user_id == current_user.id`; toda criação grava `user_id`.
+- **Exceção documentada — `POST /api/scan`**: é chamado pelo GitHub Actions, que não faz login.
+  Identifica a conta pelo header `X-Apex-Api-Key`. Sem a chave, os dados entram com
+  `user_id=None` (legado/demo). O workflow envia `${{ secrets.APEX_USER_API_KEY }}`.
+- `JWT_SECRET_KEY` no .env e no render.yaml (`generateValue: true` — o Render gera um segredo
+  forte automaticamente no deploy).
+- Frontend: `pages/Login.jsx`, `pages/Signup.jsx` (exibe a api_key em destaque com instrução
+  do secret), `components/ProtectedRoute.jsx`, interceptors do axios (injeta o Bearer e, em
+  401, limpa a sessão e volta ao login), botão SAIR e nome da empresa no Layout.
+  O `localStorage` é a única exceção documentada ao padrão do projeto — necessário para sessão.
+
+### MIGRAÇÃO DE BANCO — atenção
+
+`Base.metadata.create_all()` cria tabelas novas mas **não altera tabelas existentes**. Por isso
+`database.py` tem `run_additive_migrations()`, chamada no import do main.py: executa
+`ALTER TABLE IF EXISTS ... ADD COLUMN IF NOT EXISTS` para as colunas novas e cria os índices
+de `user_id`. É **idempotente e aditiva** — nunca faz DROP, nenhum dado é apagado. Roda
+automaticamente no deploy do Render sobre o banco Neon.
+
+### Dados legados
+
+Os alertas criados antes da autenticação ficam com `user_id=None` e **não foram apagados**.
+Eles são dados de demonstração/legado do desenvolvimento inicial e não aparecem para nenhuma
+conta logada (as queries filtram por usuário). Para demonstrar o multi-tenant na prática, o
+professor pode criar uma conta nova, cadastrar o secret `APEX_USER_API_KEY` num repositório
+de teste e ver os alertas dele aparecerem isolados.
+
+## Módulo 11 — Radar (sessão de 2026-07-22)
+
+- `services/radar.py` + `GET /api/radar` + `pages/Radar.jsx` (rota `/radar`, no grupo AVANÇADOS).
+- Gera panorama executivo de ameaças por setor, calibrado pelo Perfil da Empresa.
+- **AVISO DE HONESTIDADE OBRIGATÓRIO NA UI**: o Gemini não faz busca ao vivo na internet nesta
+  configuração. A interface declara que é uma síntese do conhecimento do modelo, não tempo real.
+  Não remover esse aviso.
+
+## SLA de Compliance (extensão do Módulo 9)
+
+- Campos `sla_deadline`, `sla_reasoning`, `compliance_risk_level` em `risk_assessments`.
+- `services/risk_analyzer.analyze_sla()` + `POST /api/sla-assessment/{alert_id}`.
+- Botão **VER SLA** como quarto e último da fileira em Alertas; resultado exibido no card de
+  Risco Real com badge colorido por nível (BAIXO verde, MEDIO dourado, ALTO laranja, CRITICO
+  vermelho). Prazo é orientação analítica — a LGPD não define prazo técnico fixo de correção.
+- Validado com Gemini real: "5 dias uteis", nível ALTO, para SQL Injection HIGH em Tecnologia.
 
 ## ⚠ AÇÃO PENDENTE DA EQUIPE — regenerar o GITHUB_TOKEN no Render
 
@@ -134,8 +189,14 @@ Traduz a vulnerabilidade em impacto financeiro estimado e desenha o caminho de p
 
 ## Status final
 
-Os 9 módulos (6 originais + 7 Isolation Forest + 8 Intent Checker + 9 Risco Real) estão
-implementados, testados (**41 testes unitários verdes**, incluindo regressão do bug do
-GITHUB_TOKEN) e rodando em produção — todos com interface visual dedicada no dashboard.
-O projeto está pronto para apresentação — resta a ação de equipe do GITHUB_TOKEN (topo
-deste arquivo) e as ações humanas da Reunião 8 (ensaio e gravação de demonstração).
+Os 11 módulos (6 originais + 7 Isolation Forest + 8 Intent Checker + 9 Risco Real com SLA +
+10 Autenticação multi-tenant + 11 Radar) estão implementados, testados (**41 testes unitários
+verdes**) e rodando em produção — todos com interface visual dedicada no dashboard.
+
+**Atenção para a demonstração:** com a autenticação ativa, é preciso criar uma conta para
+acessar o painel, e uma conta nova começa vazia (os dados antigos são legado com user_id=None).
+Para a demo, criar a conta com antecedência e conectar um repositório com o secret
+`APEX_USER_API_KEY` para popular os dados.
+
+Resta a ação de equipe do GITHUB_TOKEN (topo deste arquivo) e as ações humanas da Reunião 8
+(ensaio e gravação de demonstração).

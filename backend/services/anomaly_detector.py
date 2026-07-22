@@ -21,13 +21,16 @@ def _extract_features(alert: Alert) -> list:
     ]
 
 
-def train_and_score(db: Session) -> dict:
+def train_and_score(db: Session, user_id: int = None) -> dict:
     """
-    Treina um Isolation Forest com os alertas existentes no banco
+    Treina um Isolation Forest com os alertas da conta informada
     e retorna um score de anomalia para cada um.
     Requer um minimo de alertas para ser estatisticamente significativo.
     """
-    alerts = db.query(Alert).all()
+    query = db.query(Alert)
+    if user_id is not None:
+        query = query.filter(Alert.user_id == user_id)
+    alerts = query.all()
     if len(alerts) < 10:
         return {
             "trained": False,

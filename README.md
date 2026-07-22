@@ -20,7 +20,7 @@ Projeto acadêmico — FIAP Cibersegurança 2026
 
 A Apex Security automatiza o ciclo completo de detecção, priorização e remediação de vulnerabilidades de código. O desenvolvedor sobe código, os scanners rodam no pipeline CI/CD, os alertas são normalizados e priorizados por contexto, e a remediação é gerada por LLM (com secrets protegidos por DLP) e entregue como Pull Request — sempre com revisão humana obrigatória antes do merge.
 
-## Arquitetura — 9 Módulos
+## Arquitetura — 11 Módulos
 
 | Módulo | Função | Status |
 |--------|--------|--------|
@@ -32,11 +32,23 @@ A Apex Security automatiza o ciclo completo de detecção, priorização e remed
 | 6 — Pull Request | Branch + commit + PR com revisão humana | ✅ Completo |
 | 7 — Análise de Anomalias | Isolation Forest — sinal estatístico consultivo | ✅ Completo |
 | 8 — Verificador de Intenção | Consistência commit vs código via LLM | ✅ Completo |
-| 9 — Risco Real | Estimativa financeira (FAIR/LGPD) + Blast Radius | ✅ Completo |
+| 9 — Risco Real | Estimativa financeira (FAIR/LGPD) + Blast Radius + SLA de Compliance | ✅ Completo |
+| 10 — Autenticação Multi-tenant | Contas isoladas: cada empresa vê apenas os próprios dados | ✅ Completo |
+| 11 — Radar | Panorama de ameaças setoriais | ✅ Completo |
 
-E um **Dashboard React** (identidade visual preto e dourado) com 8 páginas: Dashboard, Alertas, Remediações, Pull Requests, Risco Real, Repositórios e — agrupadas sob "Avançados" — Anomalias e Intenção.
+E um **Dashboard React** (identidade visual preto e dourado) com 9 páginas: Login/Signup, Dashboard, Alertas, Remediações, Pull Requests, Risco Real, Repositórios e — agrupadas sob "Avançados" — Anomalias, Intenção e Radar.
 
-> **Numeração de módulos:** toda funcionalidade nova é documentada como um Módulo numerado sequencialmente (o próximo seria o Módulo 10), mantendo o padrão dos 6 módulos originais da arquitetura. A numeração aparece apenas nesta documentação — **nunca na interface visível ao usuário final**.
+> **Numeração de módulos:** toda funcionalidade nova é documentada como um Módulo numerado sequencialmente (o próximo seria o Módulo 12), mantendo o padrão dos 6 módulos originais da arquitetura. A numeração aparece apenas nesta documentação — **nunca na interface visível ao usuário final**.
+
+## Como conectar seu próprio repositório
+
+1. Crie uma conta em **Criar conta** no dashboard — a plataforma gera uma **chave de API** exclusiva
+2. Copie a chave exibida logo após o cadastro
+3. No **seu** repositório GitHub: Settings → Secrets and variables → Actions → New repository secret
+   - Nome: `APEX_USER_API_KEY` · Valor: a chave copiada
+   - Adicione também `APEX_API_URL` com `https://apex-security-api.onrender.com`
+4. Copie o workflow [.github/workflows/apex-scan.yml](.github/workflows/apex-scan.yml) para o seu repositório
+5. Faça um push — os alertas aparecem **apenas na sua conta**
 
 ## Módulos 7, 8 e 9 — consultivos, não substituem os módulos principais
 
@@ -46,7 +58,8 @@ Complementos que retomam ideias da arquitetura original, agora viáveis porque o
 |---|---|---|---|
 | 7 — Isolation Forest | Segunda opinião **estatística** — sinaliza alertas que fogem do padrão da base (scikit-learn). Requer ≥ 10 alertas; abaixo disso exibe aviso de volume insuficiente (comportamento esperado, não erro). Não substitui as regras do Módulo 3. | `GET /api/anomaly-analysis` | `/anomaly-analysis` |
 | 8 — Intent Checker | Versão **heurística simplificada** do Intent Engine: compara a mensagem do commit com o diff via Gemini e sinaliza divergências. Não integra Jira/Trello e **nunca bloqueia** PRs/merges — apenas informa. | `POST /api/intent-check` | `/intent-checker` |
-| 9 — Risco Real | Traduz a vulnerabilidade em **impacto financeiro estimado** (modelo FAIR + multa LGPD + custo de inatividade) e desenha o **blast radius** — o caminho plausível de propagação até um ativo crítico. Calibrado pelo Perfil da Empresa. Os valores são **estimativas analíticas de apoio à decisão**, não números contábeis oficiais. | `POST /api/risk-assessment/{id}`, `GET/POST /api/company-profile` | `/real-risk` |
+| 9 — Risco Real | Traduz a vulnerabilidade em **impacto financeiro estimado** (modelo FAIR + multa LGPD + custo de inatividade) e desenha o **blast radius** — o caminho plausível de propagação até um ativo crítico. Inclui o **SLA de Compliance**: prazo sugerido de correção e nível de risco regulatório. Calibrado pelo Perfil da Empresa. Os valores são **estimativas analíticas de apoio à decisão**, não números contábeis oficiais nem prazos legais. | `POST /api/risk-assessment/{id}`, `POST /api/sla-assessment/{id}`, `GET/POST /api/company-profile` | `/real-risk` |
+| 11 — Radar | Panorama executivo das ameaças mais relevantes para o setor da empresa. **Não é busca ao vivo na internet** — é uma síntese do conhecimento do modelo de IA, e a interface declara isso explicitamente. | `GET /api/radar` | `/radar` |
 
 ## Stack Tecnológico
 

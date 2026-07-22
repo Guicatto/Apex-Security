@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from database import get_db
-from models import Alert, Repository
+from models import Alert, Repository, User
 from services.normalizer import normalize
 from services.prioritizer import prioritize
 from services.anomaly_detector import train_and_score
+from services.auth import get_current_user, get_user_by_api_key
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -36,13 +38,28 @@ class AlertResponse(BaseModel):
 
 
 @router.post("/scan", status_code=201)
-def receive_scan(payload: ScanPayload, db: Session = Depends(get_db)):
-    # Registrar repositório se não existir
+def receive_scan(
+    payload: ScanPayload,
+    db: Session = Depends(get_db),
+    x_apex_api_key: str = Header(None)
+):
+    """
+    EXCECAO AO JWT: este endpoint e chamado pelo GitHub Actions, que nao consegue
+    fazer login. A conta e identificada pela api_key no header X-Apex-Api-Key.
+    Sem a chave, os dados entram como legado/demo (user_id=None).
+    """
+    user = get_user_by_api_key(x_apex_api_key, db) if x_apex_api_key else None
+    user_id = user.id if user else None
+
+    # Registrar repositorio se ainda nao existir (inventario global; o nome e unico)
     repo = db.query(Repository).filter(Repository.name == payload.repository).first()
     if not repo:
-        repo = Repository(name=payload.repository)
+        repo = Repository(name=payload.repository, user_id=user_id)
         db.add(repo)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
 
     # Normalizar para formato ASU
     try:
@@ -53,10 +70,11 @@ def receive_scan(payload: ScanPayload, db: Session = Depends(get_db)):
     # Aplicar priorização por contexto IaC
     prioritized_alerts = [prioritize(alert) for alert in normalized_alerts]
 
-    # Salvar cada alerta no banco
+    # Salvar cada alerta no banco, associado a conta dona da api_key
     saved_ids = []
     for alert_data in prioritized_alerts:
         alert = Alert(
+            user_id=user_id,
             source_tool=alert_data["source_tool"],
             repository=alert_data["repository"],
             file_path=alert_data.get("file_path"),
@@ -79,7 +97,8 @@ def receive_scan(payload: ScanPayload, db: Session = Depends(get_db)):
         "tool": payload.tool,
         "repository": payload.repository,
         "alerts_saved": len(saved_ids),
-        "alert_ids": saved_ids
+        "alert_ids": saved_ids,
+        "account": user.company_name if user else "legado/demo (sem api_key)"
     }
 
 
@@ -88,9 +107,10 @@ def list_alerts(
     severity: Optional[str] = None,
     repository: Optional[str] = None,
     source_tool: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Alert)
+    query = db.query(Alert).filter(Alert.user_id == current_user.id)
     if severity:
         query = query.filter(Alert.severity_adjusted == severity.upper())
     if repository:
@@ -101,33 +121,33 @@ def list_alerts(
 
 
 @router.get("/alerts/{alert_id}", response_model=AlertResponse)
-def get_alert(alert_id: int, db: Session = Depends(get_db)):
-    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+def get_alert(alert_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    alert = db.query(Alert).filter(Alert.id == alert_id, Alert.user_id == current_user.id).first()
     if not alert:
         raise HTTPException(status_code=404, detail="Alerta não encontrado")
     return alert
 
 
 @router.get("/anomaly-analysis")
-def get_anomaly_analysis(db: Session = Depends(get_db)):
+def get_anomaly_analysis(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
-    Executa o modelo Isolation Forest sobre os alertas atuais
+    Executa o modelo Isolation Forest sobre os alertas da conta logada
     e retorna quais sao estatisticamente anomalos.
     Este e um sinal CONSULTIVO — nao substitui as regras deterministicas
-    do Modulo 3, apenas adiciona uma camada de analise estatistica.
+    do motor de priorizacao, apenas adiciona uma camada de analise estatistica.
     """
-    result = train_and_score(db)
+    result = train_and_score(db, user_id=current_user.id)
     return result
 
 
 @router.get("/stats")
-def get_stats(db: Session = Depends(get_db)):
-    from sqlalchemy import func
-    total = db.query(Alert).count()
-    critical = db.query(Alert).filter(Alert.severity_adjusted == "CRITICAL").count()
-    high = db.query(Alert).filter(Alert.severity_adjusted == "HIGH").count()
-    medium = db.query(Alert).filter(Alert.severity_adjusted == "MEDIUM").count()
-    low = db.query(Alert).filter(Alert.severity_adjusted == "LOW").count()
+def get_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    base = db.query(Alert).filter(Alert.user_id == current_user.id)
+    total = base.count()
+    critical = base.filter(Alert.severity_adjusted == "CRITICAL").count()
+    high = base.filter(Alert.severity_adjusted == "HIGH").count()
+    medium = base.filter(Alert.severity_adjusted == "MEDIUM").count()
+    low = base.filter(Alert.severity_adjusted == "LOW").count()
     return {
         "total_alerts": total,
         "by_severity": {

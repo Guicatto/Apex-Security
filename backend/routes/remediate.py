@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Alert, Remediation
+from models import Alert, Remediation, User
 from services.remediator import request_remediation
+from services.auth import get_current_user
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
@@ -23,18 +24,21 @@ class RemediationResponse(BaseModel):
 
 
 @router.post("/remediate/{alert_id}", status_code=201)
-def remediate_alert(alert_id: int, db: Session = Depends(get_db)):
+def remediate_alert(alert_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Recebe um alert_id, busca o alerta no banco,
     chama o Gemini para gerar patch + teste e salva o resultado.
     """
-    # Buscar o alerta
-    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    # Buscar o alerta (apenas da conta logada)
+    alert = db.query(Alert).filter(Alert.id == alert_id, Alert.user_id == current_user.id).first()
     if not alert:
         raise HTTPException(status_code=404, detail=f"Alerta {alert_id} nao encontrado")
 
     # Verificar se já foi remediado
-    existing = db.query(Remediation).filter(Remediation.alert_id == alert_id).first()
+    existing = db.query(Remediation).filter(
+        Remediation.alert_id == alert_id,
+        Remediation.user_id == current_user.id
+    ).first()
     if existing:
         return {
             "message": "Este alerta ja possui remediacao",
@@ -59,6 +63,7 @@ def remediate_alert(alert_id: int, db: Session = Depends(get_db)):
 
     # Salvar no banco
     remediation = Remediation(
+        user_id=current_user.id,
         alert_id=alert_id,
         patch_code=result["patch_code"],
         test_code=result["test_code"],
@@ -79,13 +84,18 @@ def remediate_alert(alert_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/remediations/{alert_id}", response_model=RemediationResponse)
-def get_remediation(alert_id: int, db: Session = Depends(get_db)):
-    remediation = db.query(Remediation).filter(Remediation.alert_id == alert_id).first()
+def get_remediation(alert_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    remediation = db.query(Remediation).filter(
+        Remediation.alert_id == alert_id,
+        Remediation.user_id == current_user.id
+    ).first()
     if not remediation:
         raise HTTPException(status_code=404, detail="Remediacao nao encontrada para este alerta")
     return remediation
 
 
 @router.get("/remediations", response_model=list[RemediationResponse])
-def list_remediations(db: Session = Depends(get_db)):
-    return db.query(Remediation).order_by(Remediation.created_at.desc()).limit(100).all()
+def list_remediations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(Remediation).filter(
+        Remediation.user_id == current_user.id
+    ).order_by(Remediation.created_at.desc()).limit(100).all()

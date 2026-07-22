@@ -1,24 +1,28 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Alert, Remediation, PullRequest
+from models import Alert, Remediation, PullRequest, User
 from services.pr_creator import create_pull_request, GitHubAuthError
+from services.auth import get_current_user
 from datetime import datetime
 
 router = APIRouter()
 
 
 @router.post("/pull-request/{alert_id}", status_code=201)
-def create_pr(alert_id: int, db: Session = Depends(get_db)):
+def create_pr(alert_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Busca o alerta e sua remediacao no banco e cria um Pull Request no GitHub.
-    Exige que o alert_id ja tenha uma remediacao gerada pelo Modulo 5.
+    Exige que o alert_id ja tenha uma remediacao gerada pelo modulo de remediacao.
     """
-    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    alert = db.query(Alert).filter(Alert.id == alert_id, Alert.user_id == current_user.id).first()
     if not alert:
         raise HTTPException(status_code=404, detail=f"Alerta {alert_id} nao encontrado")
 
-    remediation = db.query(Remediation).filter(Remediation.alert_id == alert_id).first()
+    remediation = db.query(Remediation).filter(
+        Remediation.alert_id == alert_id,
+        Remediation.user_id == current_user.id
+    ).first()
     if not remediation:
         raise HTTPException(
             status_code=400,
@@ -26,7 +30,10 @@ def create_pr(alert_id: int, db: Session = Depends(get_db)):
         )
 
     # Verificar se ja tem PR aberto
-    existing_pr = db.query(PullRequest).filter(PullRequest.alert_id == alert_id).first()
+    existing_pr = db.query(PullRequest).filter(
+        PullRequest.alert_id == alert_id,
+        PullRequest.user_id == current_user.id
+    ).first()
     if existing_pr:
         return {
             "message": "Pull Request ja existe para este alerta",
@@ -56,6 +63,7 @@ def create_pr(alert_id: int, db: Session = Depends(get_db)):
 
     # Salvar PR no banco
     pr_record = PullRequest(
+        user_id=current_user.id,
         alert_id=alert_id,
         remediation_id=remediation.id,
         github_pr_url=pr_result["pr_url"],
@@ -78,9 +86,12 @@ def create_pr(alert_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/pull-request/{pr_id}/status")
-def update_pr_status(pr_id: int, status: str, approved_by: str = None, db: Session = Depends(get_db)):
+def update_pr_status(pr_id: int, status: str, approved_by: str = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Atualiza o status de um PR (open, merged, closed)."""
-    pr = db.query(PullRequest).filter(PullRequest.id == pr_id).first()
+    pr = db.query(PullRequest).filter(
+        PullRequest.id == pr_id,
+        PullRequest.user_id == current_user.id
+    ).first()
     if not pr:
         raise HTTPException(status_code=404, detail="Pull Request nao encontrado")
 
@@ -97,8 +108,10 @@ def update_pr_status(pr_id: int, status: str, approved_by: str = None, db: Sessi
 
 
 @router.get("/pull-requests")
-def list_prs(db: Session = Depends(get_db)):
-    prs = db.query(PullRequest).order_by(PullRequest.created_at.desc()).limit(50).all()
+def list_prs(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    prs = db.query(PullRequest).filter(
+        PullRequest.user_id == current_user.id
+    ).order_by(PullRequest.created_at.desc()).limit(50).all()
     return [
         {
             "id": pr.id,
