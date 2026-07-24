@@ -35,6 +35,10 @@ export const login = (email, password) => api.post('/auth/login', { email, passw
 export const getMe = () => api.get('/auth/me')
 export const createSLAAssessment = (alertId) => api.post(`/sla-assessment/${alertId}`)
 export const getRadar = () => api.get('/radar')
+export const regenerateApiKey = () => api.post('/auth/regenerate-key')
+export const saveDiscordWebhook = (webhookUrl) => api.post('/auth/discord-webhook', { webhook_url: webhookUrl })
+export const testDiscordWebhook = () => api.post('/auth/discord-webhook/test')
+export const sendContact = (data) => api.post('/contact', data)
 
 export const getAlerts = (params = {}) => api.get('/alerts', { params })
 export const getAlert = (id) => api.get(`/alerts/${id}`)

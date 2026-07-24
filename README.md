@@ -1,7 +1,9 @@
-# Apex Security v1.0
+# Apex Security v2.0
 
 **Plataforma ASPM (Application Security Posture Management)**
 Projeto acadêmico — FIAP Cibersegurança 2026
+
+Versão atual: **v2.0.0** — ver [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
@@ -71,6 +73,9 @@ Complementos que retomam ideias da arquitetura original, agora viáveis porque o
 - **LLM:** Gemini API — gemini-2.5-flash-lite
 - **ML:** scikit-learn (Isolation Forest)
 - **Grafo de propagação:** reactflow
+- **Autenticação:** JWT (python-jose) + bcrypt (passlib)
+- **Relatórios:** jsPDF + jspdf-autotable
+- **Notificações:** webhook do Discord · **E-mail:** SMTP do Gmail
 - **Integração GitHub:** PyGitHub
 
 ## Infraestrutura de produção

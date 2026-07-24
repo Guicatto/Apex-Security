@@ -1,11 +1,9 @@
 import os
 import json
-import google.generativeai as genai
 from dotenv import load_dotenv
+from services.gemini_client import generate_with_fallback
 
 load_dotenv()
-
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # ESTIMATIVA ANALITICA DE APOIO A DECISAO — nao e valor contabil oficial.
 # Segue a mesma filosofia consultiva dos demais modulos avancados: informa,
@@ -57,11 +55,6 @@ def analyze_risk(
     Chama o Gemini para estimar impacto financeiro e gerar blast radius
     de uma vulnerabilidade especifica, calibrado pelo perfil da empresa.
     """
-    model = genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        system_instruction=RISK_SYSTEM_PROMPT
-    )
-
     prompt = f"""VULNERABILIDADE:
 Titulo: {alert_title}
 Severidade: {alert_severity}
@@ -77,7 +70,7 @@ Contexto operacional adicional: {company_profile.get('operational_context') or '
 Gere a analise de risco completa conforme o formato especificado."""
 
     try:
-        response = model.generate_content(prompt)
+        response = generate_with_fallback(GEMINI_MODEL, RISK_SYSTEM_PROMPT, prompt)
         raw = response.text.strip().replace("```json", "").replace("```", "").strip()
         result = json.loads(raw)
         return result
@@ -108,11 +101,6 @@ def analyze_sla(alert_title: str, alert_severity: str, company_profile: dict) ->
     Assim como a estimativa financeira, e uma orientacao analitica de apoio
     a decisao — nao um prazo legal oficial.
     """
-    model = genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        system_instruction=SLA_SYSTEM_PROMPT
-    )
-
     prompt = f"""VULNERABILIDADE: {alert_title}
 SEVERIDADE: {alert_severity}
 
@@ -124,7 +112,7 @@ Volume de dados sensiveis: {company_profile.get('sensitive_data_volume')}
 Calcule o prazo SLA de correcao."""
 
     try:
-        response = model.generate_content(prompt)
+        response = generate_with_fallback(GEMINI_MODEL, SLA_SYSTEM_PROMPT, prompt)
         raw = response.text.strip().replace("```json", "").replace("```", "").strip()
         return json.loads(raw)
     except Exception as e:

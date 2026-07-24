@@ -35,6 +35,7 @@ _ADDITIVE_COLUMNS = [
     ("risk_assessments", "sla_deadline", "VARCHAR(100)"),
     ("risk_assessments", "sla_reasoning", "TEXT"),
     ("risk_assessments", "compliance_risk_level", "VARCHAR(20)"),
+    ("users", "discord_webhook_url", "VARCHAR(500)"),
 ]
 
 

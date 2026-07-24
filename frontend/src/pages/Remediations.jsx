@@ -1,14 +1,24 @@
 import { useState, useEffect } from 'react'
 import Card from '../components/Card'
 import { getRemediations } from '../services/api'
+import { useDemoMode, demoDelay } from '../context/DemoContext'
+import { demoRemediations } from '../data/demoData'
 
 export default function Remediations() {
   const [remediations, setRemediations] = useState([])
   const [loading, setLoading] = useState(true)
+  const { isDemoMode } = useDemoMode()
 
   useEffect(() => {
+    // MODO DEMO: sem chamada de API
+    if (isDemoMode) {
+      setLoading(true)
+      demoDelay().then(() => { setRemediations(demoRemediations); setLoading(false) })
+      return
+    }
+    setLoading(true)
     getRemediations().then(r => setRemediations(r.data)).catch(console.error).finally(() => setLoading(false))
-  }, [])
+  }, [isDemoMode])
 
   return (
     <div>

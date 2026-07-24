@@ -1,4 +1,4 @@
-# Guia de Deploy — Apex Security v1.0
+# Guia de Deploy — Apex Security v2.0
 
 Este documento cobre o processo de colocar a Apex Security em produção,
 acessível publicamente sem depender de nenhum computador específico.

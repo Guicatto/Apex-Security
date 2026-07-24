@@ -11,8 +11,14 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_API_KEY_2
+        sync: false
       - key: GEMINI_MODEL
         value: gemini-2.5-flash-lite
+      - key: CONTACT_GMAIL_ADDRESS
+        value: apexsecurityofficial@gmail.com
+      - key: CONTACT_GMAIL_APP_PASSWORD
+        sync: false
       - key: GITHUB_TOKEN
         sync: false
       - key: GITHUB_REPO

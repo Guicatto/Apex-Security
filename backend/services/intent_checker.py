@@ -1,11 +1,9 @@
 import os
 import json
-import google.generativeai as genai
 from dotenv import load_dotenv
+from services.gemini_client import generate_with_fallback
 
 load_dotenv()
-
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Versao heuristica SIMPLIFICADA do Intent Engine da arquitetura original.
 # Nao integra com Jira/Trello nem usa dataset de ameacas — apenas compara a
@@ -28,11 +26,6 @@ def check_intent_consistency(commit_message: str, code_diff: str) -> dict:
     Compara mensagem de commit com o diff real via Gemini.
     Retorna um alerta INFORMATIVO — nunca bloqueia nada automaticamente.
     """
-    model = genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        system_instruction=INTENT_SYSTEM_PROMPT
-    )
-
     prompt = f"""MENSAGEM DO COMMIT:
 {commit_message}
 
@@ -42,7 +35,7 @@ DIFF DO CODIGO:
 Analise a consistencia."""
 
     try:
-        response = model.generate_content(prompt)
+        response = generate_with_fallback(GEMINI_MODEL, INTENT_SYSTEM_PROMPT, prompt)
         raw = response.text.strip()
         raw = raw.replace("```json", "").replace("```", "").strip()
         result = json.loads(raw)

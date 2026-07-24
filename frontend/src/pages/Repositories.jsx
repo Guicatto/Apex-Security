@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import Card from '../components/Card'
 import { getAlerts } from '../services/api'
+import { useDemoMode, demoDelay } from '../context/DemoContext'
+import { demoRepositories } from '../data/demoData'
 
 const severityColors = {
   CRITICAL: '#C0392B',
@@ -14,8 +16,17 @@ const severityColors = {
 export default function Repositories() {
   const [repos, setRepos] = useState([])
   const [loading, setLoading] = useState(true)
+  const { isDemoMode } = useDemoMode()
 
   useEffect(() => {
+    // MODO DEMO: sem chamada de API
+    if (isDemoMode) {
+      setLoading(true)
+      demoDelay().then(() => { setRepos(demoRepositories); setLoading(false) })
+      return
+    }
+
+    setLoading(true)
     getAlerts()
       .then(res => {
         const grouped = {}
@@ -32,7 +43,7 @@ export default function Repositories() {
       })
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [])
+  }, [isDemoMode])
 
   return (
     <div>

@@ -7,6 +7,7 @@ from services.normalizer import normalize
 from services.prioritizer import prioritize
 from services.anomaly_detector import train_and_score
 from services.auth import get_current_user, get_user_by_api_key
+from services.discord_notifier import send_discord_alert
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -91,6 +92,18 @@ def receive_scan(
         db.commit()
         db.refresh(alert)
         saved_ids.append(alert.id)
+
+        # Notificacao best-effort: falha no Discord nunca quebra o salvamento
+        if user and user.discord_webhook_url:
+            try:
+                send_discord_alert(
+                    user.discord_webhook_url,
+                    alert.title,
+                    alert.severity_adjusted or alert.severity,
+                    alert.repository
+                )
+            except Exception:
+                pass
 
     return {
         "message": "Scan normalizado e salvo com sucesso",

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import Card from '../components/Card'
 import { checkIntent } from '../services/api'
+import { useDemoMode, demoDelay } from '../context/DemoContext'
+import { demoIntentResult } from '../data/demoData'
 
 const examples = {
   honest: {
@@ -41,10 +43,20 @@ export default function IntentChecker() {
   const [codeDiff, setCodeDiff] = useState('')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const { isDemoMode } = useDemoMode()
 
   const handleCheck = async () => {
     if (!commitMessage.trim() || !codeDiff.trim()) return
     setLoading(true)
+
+    // MODO DEMO: resultado ficticio local, sem chamada de API
+    if (isDemoMode) {
+      await demoDelay(500)
+      setResult(demoIntentResult)
+      setLoading(false)
+      return
+    }
+
     try {
       const res = await checkIntent(commitMessage, codeDiff)
       setResult(res.data)

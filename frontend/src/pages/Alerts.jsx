@@ -2,9 +2,34 @@ import { useState, useEffect } from 'react'
 import SeverityBadge from '../components/SeverityBadge'
 import Card from '../components/Card'
 import { getAlerts, remediate, createPR, createRiskAssessment, createSLAAssessment } from '../services/api'
+import { generateAlertsReport } from '../utils/pdfReport'
+import { useDemoMode, demoDelay } from '../context/DemoContext'
+import { demoAlerts } from '../data/demoData'
 
 const severities = ['TODAS', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']
 const tools = ['TODAS', 'semgrep', 'trivy']
+
+const formatDate = (isoString) => {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
+// Security Health Score — puramente frontend, derivado dos alertas em tela
+const calculateHealthScore = (alerts) => {
+  const critical = alerts.filter(a => a.severity_adjusted === 'CRITICAL').length
+  const high = alerts.filter(a => a.severity_adjusted === 'HIGH').length
+  const medium = alerts.filter(a => a.severity_adjusted === 'MEDIUM').length
+  const score = Math.max(0, 100 - (critical * 25) - (high * 10) - (medium * 5))
+  let grade, color, label
+  if (score >= 90) { grade = 'A'; color = '#1A6B3C'; label = 'Excelente' }
+  else if (score >= 70) { grade = 'B'; color = '#C9A84C'; label = 'Atenção' }
+  else { grade = 'F'; color = '#C0392B'; label = 'Risco Crítico' }
+  return { score, grade, color, label }
+}
 
 export default function Alerts() {
   const [alerts, setAlerts] = useState([])
@@ -13,8 +38,21 @@ export default function Alerts() {
   const [toolFilter, setToolFilter] = useState('TODAS')
   const [actionLoading, setActionLoading] = useState({})
   const [messages, setMessages] = useState({})
+  const { isDemoMode } = useDemoMode()
 
-  const fetchAlerts = () => {
+  const fetchAlerts = async () => {
+    // MODO DEMO: filtra os dados ficticios localmente, sem tocar na API
+    if (isDemoMode) {
+      setLoading(true)
+      await demoDelay()
+      let data = demoAlerts
+      if (severityFilter !== 'TODAS') data = data.filter(a => a.severity_adjusted === severityFilter)
+      if (toolFilter !== 'TODAS') data = data.filter(a => a.source_tool === toolFilter)
+      setAlerts(data)
+      setLoading(false)
+      return
+    }
+
     const params = {}
     if (severityFilter !== 'TODAS') params.severity = severityFilter
     if (toolFilter !== 'TODAS') params.source_tool = toolFilter
@@ -24,9 +62,18 @@ export default function Alerts() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { fetchAlerts() }, [severityFilter, toolFilter])
+  useEffect(() => { fetchAlerts() }, [severityFilter, toolFilter, isDemoMode])
+
+  /** No Modo Demo, as acoes simulam sucesso sem chamar a API. */
+  const runDemoAction = async (alertId, key, message) => {
+    setActionLoading(p => ({ ...p, [`${key}_${alertId}`]: true }))
+    await demoDelay(400)
+    setMessages(p => ({ ...p, [alertId]: message }))
+    setActionLoading(p => ({ ...p, [`${key}_${alertId}`]: false }))
+  }
 
   const handleRemediate = async (alertId) => {
+    if (isDemoMode) return runDemoAction(alertId, 'rem', '✓ Remediação gerada — patch e teste unitário prontos')
     setActionLoading(p => ({ ...p, [`rem_${alertId}`]: true }))
     try {
       await remediate(alertId)
@@ -40,6 +87,7 @@ export default function Alerts() {
   }
 
   const handleCreatePR = async (alertId) => {
+    if (isDemoMode) return runDemoAction(alertId, 'pr', '✓ PR criado: https://github.com/acme-corp/checkout-api/pull/43')
     setActionLoading(p => ({ ...p, [`pr_${alertId}`]: true }))
     try {
       const res = await createPR(alertId)
@@ -62,6 +110,7 @@ export default function Alerts() {
   }
 
   const handleMapRisk = async (alertId) => {
+    if (isDemoMode) return runDemoAction(alertId, 'risk', '✓ Risco mapeado — ver aba Risco Real')
     setActionLoading(p => ({ ...p, [`risk_${alertId}`]: true }))
     try {
       await createRiskAssessment(alertId)
@@ -75,6 +124,7 @@ export default function Alerts() {
   }
 
   const handleViewSLA = async (alertId) => {
+    if (isDemoMode) return runDemoAction(alertId, 'sla', '✓ SLA calculado — ver aba Risco Real')
     setActionLoading(p => ({ ...p, [`sla_${alertId}`]: true }))
     try {
       await createSLAAssessment(alertId)
@@ -101,9 +151,12 @@ export default function Alerts() {
     transition: 'all 0.2s ease',
   })
 
+  const health = calculateHealthScore(alerts)
+
   return (
     <div>
-      <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+        <div>
         <h1 style={{
           fontFamily: "'Cinzel', serif",
           fontSize: '24px',
@@ -114,6 +167,55 @@ export default function Alerts() {
         <p style={{ color: '#8A7A5A', fontFamily: 'Raleway', fontSize: '13px' }}>
           {alerts.length} alerta{alerts.length !== 1 ? 's' : ''} encontrado{alerts.length !== 1 ? 's' : ''}
         </p>
+
+        {/* Security Health Score — compacto, complementa o cabecalho */}
+        {!loading && alerts.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '12px' }}>
+            <div style={{
+              width: '28px', height: '28px', borderRadius: '50%',
+              background: `${health.color}20`,
+              border: `1px solid ${health.color}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: "'Cinzel', serif", fontSize: '14px', fontWeight: '700',
+              color: health.color, flexShrink: 0,
+            }}>{health.grade}</div>
+            <div>
+              <div style={{ fontFamily: 'JetBrains Mono', fontSize: '12px', color: '#F0E6C8' }}>
+                {health.score}/100
+              </div>
+              <div style={{
+                fontFamily: 'Raleway', fontSize: '9px', color: health.color,
+                letterSpacing: '0.12em', textTransform: 'uppercase',
+              }}>Security Health · {health.label}</div>
+            </div>
+          </div>
+        )}
+        </div>
+
+        {/* Exportar PDF */}
+        <button
+          onClick={() => generateAlertsReport(alerts, localStorage.getItem('company_name'))}
+          disabled={alerts.length === 0}
+          style={{
+            background: 'transparent',
+            border: '1px solid #2A2200',
+            borderRadius: '6px',
+            padding: '7px 14px',
+            color: '#8A7A5A',
+            fontFamily: 'Raleway',
+            fontSize: '11px',
+            fontWeight: '600',
+            letterSpacing: '0.08em',
+            cursor: alerts.length === 0 ? 'default' : 'pointer',
+            opacity: alerts.length === 0 ? 0.4 : 1,
+            flexShrink: 0,
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={e => { if (alerts.length) { e.currentTarget.style.borderColor = '#C9A84C'; e.currentTarget.style.color = '#C9A84C' } }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A2200'; e.currentTarget.style.color = '#8A7A5A' }}
+        >
+          ▤ EXPORTAR PDF
+        </button>
       </div>
 
       {/* Filtros */}
@@ -165,6 +267,14 @@ export default function Alerts() {
                     color: '#F0E6C8',
                     marginBottom: '4px',
                   }}>{alert.title}</div>
+                  <div style={{
+                    fontFamily: 'JetBrains Mono',
+                    fontSize: '10px',
+                    color: '#8A7A5A',
+                    marginBottom: '2px',
+                  }}>
+                    {formatDate(alert.created_at)}
+                  </div>
                   <div style={{
                     fontFamily: 'JetBrains Mono',
                     fontSize: '11px',

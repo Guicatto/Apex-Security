@@ -12,6 +12,10 @@ import IntentChecker from './pages/IntentChecker'
 import Radar from './pages/Radar'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import IntegrationKey from './pages/IntegrationKey'
+import Account from './pages/Account'
+import Contact from './pages/Contact'
+import Notifications from './pages/Notifications'
 
 export default function App() {
   return (
@@ -36,6 +40,10 @@ export default function App() {
                 <Route path="/anomaly-analysis" element={<AnomalyAnalysis />} />
                 <Route path="/intent-checker" element={<IntentChecker />} />
                 <Route path="/radar" element={<Radar />} />
+                <Route path="/integration-key" element={<IntegrationKey />} />
+                <Route path="/account" element={<Account />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/notifications" element={<Notifications />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

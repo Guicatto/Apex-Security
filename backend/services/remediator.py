@@ -2,17 +2,10 @@ import os
 import json
 import re
 from dotenv import load_dotenv
-import google.generativeai as genai
 from services.dlp import obfuscate, deobfuscate
+from services.gemini_client import generate_with_fallback
 
 load_dotenv()
-
-# Configurar Gemini
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    raise EnvironmentError("GEMINI_API_KEY nao encontrada no .env")
-
-genai.configure(api_key=GEMINI_API_KEY)
 
 # O prompt da R4 fixou "gemini-1.5-flash", mas esse modelo foi descontinuado (a API
 # retorna 404 para generateContent na v1beta). Além disso, esta chave tem cota ZERO
@@ -68,14 +61,9 @@ CODIGO VULNERAVEL:
 
 Gere o JSON com patch_code, test_code e pr_description conforme instruido."""
 
-    # Chamar o Gemini
-    model = genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        system_instruction=SYSTEM_PROMPT
-    )
-
+    # Chamar o Gemini (com fallback automatico entre chaves)
     try:
-        response = model.generate_content(user_prompt)
+        response = generate_with_fallback(GEMINI_MODEL, SYSTEM_PROMPT, user_prompt)
         raw_response = response.text.strip()
     except Exception as e:
         raise RuntimeError(f"Erro na chamada ao Gemini: {e}")

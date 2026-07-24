@@ -2,14 +2,30 @@ import { useState, useEffect } from 'react'
 import { ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import Card from '../components/Card'
 import { getAnomalyAnalysis, getAlerts } from '../services/api'
+import { useDemoMode, demoDelay } from '../context/DemoContext'
+import { demoAnomalyAnalysis, demoAlerts } from '../data/demoData'
 
 export default function AnomalyAnalysis() {
   const [data, setData] = useState(null)
   const [alertsById, setAlertsById] = useState({})
   const [loading, setLoading] = useState(true)
+  const { isDemoMode } = useDemoMode()
 
   const fetchAnalysis = () => {
     setLoading(true)
+
+    // MODO DEMO: analise ficticia local, sem chamada de API
+    if (isDemoMode) {
+      demoDelay().then(() => {
+        setData(demoAnomalyAnalysis)
+        const byId = {}
+        for (const a of demoAlerts) byId[a.id] = a
+        setAlertsById(byId)
+        setLoading(false)
+      })
+      return
+    }
+
     Promise.all([getAnomalyAnalysis(), getAlerts()])
       .then(([analysisRes, alertsRes]) => {
         setData(analysisRes.data)
@@ -21,7 +37,7 @@ export default function AnomalyAnalysis() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { fetchAnalysis() }, [])
+  useEffect(() => { fetchAnalysis() }, [isDemoMode])
 
   const scores = data?.scores || {}
   const points = Object.entries(scores).map(([id, s], idx) => ({

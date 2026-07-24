@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import Card from '../components/Card'
 import { getPRs } from '../services/api'
+import { useDemoMode, demoDelay } from '../context/DemoContext'
+import { demoPullRequests } from '../data/demoData'
 
 const statusConfig = {
   open: { color: '#C9A84C', label: 'ABERTO' },
@@ -11,10 +13,18 @@ const statusConfig = {
 export default function PullRequests() {
   const [prs, setPRs] = useState([])
   const [loading, setLoading] = useState(true)
+  const { isDemoMode } = useDemoMode()
 
   useEffect(() => {
+    // MODO DEMO: sem chamada de API
+    if (isDemoMode) {
+      setLoading(true)
+      demoDelay().then(() => { setPRs(demoPullRequests); setLoading(false) })
+      return
+    }
+    setLoading(true)
     getPRs().then(r => setPRs(r.data)).catch(console.error).finally(() => setLoading(false))
-  }, [])
+  }, [isDemoMode])
 
   return (
     <div>

@@ -11,15 +11,17 @@ MOCK_GEMINI_RESPONSE = json.dumps({
 })
 
 
+def _mock_response(text):
+    """generate_with_fallback() devolve o response direto (nao o model)."""
+    resp = MagicMock()
+    resp.text = text
+    return resp
+
+
 class TestRequestRemediation:
-    @patch("services.remediator.genai.GenerativeModel")
-    def test_retorna_tres_campos_obrigatorios(self, mock_model_class):
-        # Configurar mock
-        mock_model = MagicMock()
-        mock_response = MagicMock()
-        mock_response.text = MOCK_GEMINI_RESPONSE
-        mock_model.generate_content.return_value = mock_response
-        mock_model_class.return_value = mock_model
+    @patch("services.remediator.generate_with_fallback")
+    def test_retorna_tres_campos_obrigatorios(self, mock_gen):
+        mock_gen.return_value = _mock_response(MOCK_GEMINI_RESPONSE)
 
         result = request_remediation(
             alert_title="Senha hardcoded",
@@ -32,13 +34,9 @@ class TestRequestRemediation:
         assert "test_code" in result
         assert "pr_description" in result
 
-    @patch("services.remediator.genai.GenerativeModel")
-    def test_dlp_aplicado_quando_ha_secrets(self, mock_model_class):
-        mock_model = MagicMock()
-        mock_response = MagicMock()
-        mock_response.text = MOCK_GEMINI_RESPONSE
-        mock_model.generate_content.return_value = mock_response
-        mock_model_class.return_value = mock_model
+    @patch("services.remediator.generate_with_fallback")
+    def test_dlp_aplicado_quando_ha_secrets(self, mock_gen):
+        mock_gen.return_value = _mock_response(MOCK_GEMINI_RESPONSE)
 
         result = request_remediation(
             alert_title="Token exposto",
@@ -50,13 +48,9 @@ class TestRequestRemediation:
         assert result["dlp_applied"] is True
         assert result["secrets_found"] > 0
 
-    @patch("services.remediator.genai.GenerativeModel")
-    def test_json_invalido_levanta_value_error(self, mock_model_class):
-        mock_model = MagicMock()
-        mock_response = MagicMock()
-        mock_response.text = "isso nao e json valido"
-        mock_model.generate_content.return_value = mock_response
-        mock_model_class.return_value = mock_model
+    @patch("services.remediator.generate_with_fallback")
+    def test_json_invalido_levanta_value_error(self, mock_gen):
+        mock_gen.return_value = _mock_response("isso nao e json valido")
 
         with pytest.raises(ValueError):
             request_remediation(
@@ -67,14 +61,10 @@ class TestRequestRemediation:
                 code_snippet="x = 1"
             )
 
-    @patch("services.remediator.genai.GenerativeModel")
-    def test_campos_faltando_levanta_value_error(self, mock_model_class):
-        mock_model = MagicMock()
-        mock_response = MagicMock()
+    @patch("services.remediator.generate_with_fallback")
+    def test_campos_faltando_levanta_value_error(self, mock_gen):
         # Resposta sem test_code
-        mock_response.text = json.dumps({"patch_code": "x = 2", "pr_description": "desc"})
-        mock_model.generate_content.return_value = mock_response
-        mock_model_class.return_value = mock_model
+        mock_gen.return_value = _mock_response(json.dumps({"patch_code": "x = 2", "pr_description": "desc"}))
 
         with pytest.raises(ValueError, match="test_code"):
             request_remediation(

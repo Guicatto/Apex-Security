@@ -4,6 +4,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import StatCard from '../components/StatCard'
 import Card from '../components/Card'
 import { getStats, getAlerts } from '../services/api'
+import { useDemoMode, demoDelay } from '../context/DemoContext'
+import { demoStats, demoAlerts } from '../data/demoData'
 
 const severityColors = {
   CRITICAL: '#C0392B',
@@ -18,8 +20,21 @@ export default function Dashboard() {
   const [recentAlerts, setRecentAlerts] = useState([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const { isDemoMode } = useDemoMode()
 
   useEffect(() => {
+    // MODO DEMO: dados ficticios locais, sem chamada de API
+    if (isDemoMode) {
+      setLoading(true)
+      demoDelay().then(() => {
+        setStats(demoStats)
+        setRecentAlerts(demoAlerts.slice(0, 5))
+        setLoading(false)
+      })
+      return
+    }
+
+    setLoading(true)
     Promise.all([getStats(), getAlerts()])
       .then(([statsRes, alertsRes]) => {
         setStats(statsRes.data)
@@ -27,7 +42,7 @@ export default function Dashboard() {
       })
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [])
+  }, [isDemoMode])
 
   const chartData = stats?.by_severity
     ? Object.entries(stats.by_severity).map(([k, v]) => ({ name: k, value: v }))

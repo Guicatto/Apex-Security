@@ -1,4 +1,7 @@
+import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import Sidebar from './Sidebar'
+import { useDemoMode } from '../context/DemoContext'
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: '◈' },
@@ -17,13 +20,8 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const companyName = localStorage.getItem('company_name')
-
-  const handleLogout = () => {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('api_key')
-    localStorage.removeItem('company_name')
-    navigate('/login')
-  }
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { isDemoMode, setIsDemoMode } = useDemoMode()
 
   return (
     <div style={{
@@ -32,6 +30,7 @@ export default function Layout({ children }) {
       height: '100vh',
       background: '#0A0A0A',
     }}>
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {/* Header */}
       <header style={{
         background: 'linear-gradient(180deg, #111111 0%, #0A0A0A 100%)',
@@ -43,13 +42,50 @@ export default function Layout({ children }) {
         flexShrink: 0,
         position: 'relative',
       }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Menu + logo + modo demo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Abrir menu"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '6px 4px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+            }}
+          >
+            {[0, 1, 2].map(i => (
+              <span key={i} style={{ display: 'block', width: '18px', height: '1.5px', background: '#8A7A5A' }} />
+            ))}
+          </button>
+
           <img
             src="/apex-logo.png"
             alt="Apex Security"
             style={{ height: '40px', width: 'auto', objectFit: 'contain' }}
           />
+
+          <button
+            onClick={() => setIsDemoMode(!isDemoMode)}
+            style={{
+              fontSize: '10px',
+              fontFamily: "'Raleway', sans-serif",
+              fontWeight: '600',
+              letterSpacing: '0.05em',
+              color: isDemoMode ? '#0A0A0A' : '#8A7A5A',
+              background: isDemoMode ? '#C9A84C' : 'transparent',
+              border: `1px solid ${isDemoMode ? '#C9A84C' : '#2A2200'}`,
+              borderRadius: '4px',
+              padding: '3px 8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            MODO DEMO: {isDemoMode ? 'ON' : 'OFF'}
+          </button>
         </div>
 
         {/* Nav */}
@@ -133,26 +169,6 @@ export default function Layout({ children }) {
               letterSpacing: '0.1em',
             }}>{companyName || 'SISTEMA ATIVO'}</span>
           </div>
-          <button
-            onClick={handleLogout}
-            style={{
-              background: 'transparent',
-              border: '1px solid #2A2200',
-              borderRadius: '6px',
-              padding: '5px 12px',
-              color: '#8A7A5A',
-              fontFamily: "'Raleway', sans-serif",
-              fontSize: '10px',
-              fontWeight: '600',
-              letterSpacing: '0.1em',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#C9A84C'; e.currentTarget.style.color = '#C9A84C' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A2200'; e.currentTarget.style.color = '#8A7A5A' }}
-          >
-            SAIR
-          </button>
         </div>
 
         {/* Linha dourada embaixo do header */}

@@ -1,16 +1,29 @@
 import { useState } from 'react'
 import Card from '../components/Card'
 import { getRadar } from '../services/api'
+import { useDemoMode, demoDelay } from '../context/DemoContext'
+import { demoRadarReport } from '../data/demoData'
 
 export default function Radar() {
   const [report, setReport] = useState(null)
   const [generatedAt, setGeneratedAt] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const { isDemoMode } = useDemoMode()
 
   const fetchRadar = async () => {
     setLoading(true)
     setError('')
+
+    // MODO DEMO: relatorio ficticio local, sem chamada de API
+    if (isDemoMode) {
+      await demoDelay(500)
+      setReport(demoRadarReport)
+      setGeneratedAt(new Date().toISOString())
+      setLoading(false)
+      return
+    }
+
     try {
       const res = await getRadar()
       setReport(res.data.report)

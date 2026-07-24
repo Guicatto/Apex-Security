@@ -8,6 +8,7 @@ from routes.pullrequest import router as pr_router
 from routes.intent import router as intent_router
 from routes.risk import router as risk_router
 from routes.auth import router as auth_router
+from routes.contact import router as contact_router
 
 Base.metadata.create_all(bind=engine)
 # create_all cria tabelas novas mas nao altera as existentes — aplica as colunas novas
@@ -15,8 +16,8 @@ run_additive_migrations()
 
 app = FastAPI(
     title="Apex Security API",
-    description="Plataforma ASPM — Apex Security v1.0",
-    version="1.0.0"
+    description="Plataforma ASPM — Apex Security v2.0",
+    version="2.0.0"
 )
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
@@ -34,6 +35,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/api", tags=["auth"])
+app.include_router(contact_router, prefix="/api", tags=["contact"])
 app.include_router(scan_router, prefix="/api", tags=["scan"])
 app.include_router(remediate_router, prefix="/api", tags=["remediation"])
 app.include_router(pr_router, prefix="/api", tags=["pull-requests"])
@@ -50,7 +52,7 @@ async def startup_event():
 def root():
     return {
         "service": "Apex Security API",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "status": "online",
         "docs": "/docs",
         "health": "/health"
@@ -59,4 +61,4 @@ def root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "service": "Apex Security API v1.0"}
+    return {"status": "ok", "service": "Apex Security API v2.0"}

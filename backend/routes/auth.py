@@ -1,8 +1,10 @@
+import secrets
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import User
 from services.auth import hash_password, verify_password, create_access_token, get_current_user
+from services.discord_notifier import send_discord_alert
 from pydantic import BaseModel, EmailStr
 
 router = APIRouter()
@@ -64,5 +66,40 @@ def get_me(current_user: User = Depends(get_current_user)):
         "id": current_user.id,
         "email": current_user.email,
         "company_name": current_user.company_name,
-        "api_key": current_user.api_key
+        "api_key": current_user.api_key,
+        "discord_webhook_url": current_user.discord_webhook_url
     }
+
+
+@router.post("/auth/regenerate-key")
+def regenerate_api_key(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Invalida a chave antiga e gera uma nova — exige atualizar o secret no GitHub."""
+    current_user.api_key = secrets.token_hex(32)
+    db.commit()
+    return {"api_key": current_user.api_key}
+
+
+class DiscordWebhookPayload(BaseModel):
+    webhook_url: str
+
+
+@router.post("/auth/discord-webhook")
+def save_discord_webhook(payload: DiscordWebhookPayload, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    current_user.discord_webhook_url = payload.webhook_url
+    db.commit()
+    return {"message": "Webhook do Discord salvo com sucesso"}
+
+
+@router.post("/auth/discord-webhook/test")
+def test_discord_webhook(current_user: User = Depends(get_current_user)):
+    if not current_user.discord_webhook_url:
+        raise HTTPException(status_code=400, detail="Nenhum webhook configurado")
+    success = send_discord_alert(
+        current_user.discord_webhook_url,
+        "Notificacao de teste — integracao funcionando",
+        "INFO",
+        current_user.company_name or "sua empresa"
+    )
+    if not success:
+        raise HTTPException(status_code=502, detail="Falha ao enviar — verifique a URL do webhook")
+    return {"message": "Notificacao de teste enviada com sucesso"}

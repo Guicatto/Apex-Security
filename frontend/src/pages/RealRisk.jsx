@@ -3,6 +3,9 @@ import ReactFlow, { Background, Controls } from 'reactflow'
 import 'reactflow/dist/style.css'
 import Card from '../components/Card'
 import { getCompanyProfile, saveCompanyProfile, getRiskAssessments } from '../services/api'
+import { generateRiskReport } from '../utils/pdfReport'
+import { useDemoMode, demoDelay } from '../context/DemoContext'
+import { demoCompanyProfile, demoRiskAssessments } from '../data/demoData'
 
 const sectors = [
   'Tecnologia / Software',
@@ -125,8 +128,21 @@ export default function RealRisk() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savedMsg, setSavedMsg] = useState('')
+  const { isDemoMode } = useDemoMode()
 
   useEffect(() => {
+    // MODO DEMO: perfil e avaliacoes ficticios, sem chamada de API
+    if (isDemoMode) {
+      setLoading(true)
+      demoDelay().then(() => {
+        setProfile(demoCompanyProfile)
+        setAssessments(demoRiskAssessments)
+        setLoading(false)
+      })
+      return
+    }
+
+    setLoading(true)
     Promise.all([getCompanyProfile(), getRiskAssessments()])
       .then(([profRes, assessRes]) => {
         setProfile(profRes.data)
@@ -134,9 +150,16 @@ export default function RealRisk() {
       })
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [])
+  }, [isDemoMode])
 
   const handleSave = async () => {
+    if (isDemoMode) {
+      setSaving(true)
+      await demoDelay(400)
+      setSavedMsg('✓ Perfil salvo — as próximas estimativas usarão estes dados')
+      setSaving(false)
+      return
+    }
     setSaving(true)
     setSavedMsg('')
     try {
@@ -154,18 +177,43 @@ export default function RealRisk() {
   return (
     <div>
       {/* Título */}
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{
-          fontFamily: "'Cinzel', serif",
-          fontSize: '24px',
-          fontWeight: '600',
-          color: '#F0E6C8',
-          letterSpacing: '0.05em',
-          marginBottom: '4px',
-        }}>Risco Real</h1>
-        <p style={{ color: '#8A7A5A', fontFamily: 'Raleway', fontSize: '13px' }}>
-          Quanto uma vulnerabilidade pode custar ao seu negócio
-        </p>
+      <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+        <div>
+          <h1 style={{
+            fontFamily: "'Cinzel', serif",
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#F0E6C8',
+            letterSpacing: '0.05em',
+            marginBottom: '4px',
+          }}>Risco Real</h1>
+          <p style={{ color: '#8A7A5A', fontFamily: 'Raleway', fontSize: '13px' }}>
+            Quanto uma vulnerabilidade pode custar ao seu negócio
+          </p>
+        </div>
+        <button
+          onClick={() => generateRiskReport(assessments, localStorage.getItem('company_name'))}
+          disabled={assessments.length === 0}
+          style={{
+            background: 'transparent',
+            border: '1px solid #2A2200',
+            borderRadius: '6px',
+            padding: '7px 14px',
+            color: '#8A7A5A',
+            fontFamily: 'Raleway',
+            fontSize: '11px',
+            fontWeight: '600',
+            letterSpacing: '0.08em',
+            cursor: assessments.length === 0 ? 'default' : 'pointer',
+            opacity: assessments.length === 0 ? 0.4 : 1,
+            flexShrink: 0,
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={e => { if (assessments.length) { e.currentTarget.style.borderColor = '#C9A84C'; e.currentTarget.style.color = '#C9A84C' } }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A2200'; e.currentTarget.style.color = '#8A7A5A' }}
+        >
+          ▤ EXPORTAR PDF
+        </button>
       </div>
 
       {/* Cabeçalho explicativo */}

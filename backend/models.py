@@ -17,6 +17,7 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     company_name = Column(String(255))
     api_key = Column(String(64), unique=True, default=lambda: secrets.token_hex(32))
+    discord_webhook_url = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

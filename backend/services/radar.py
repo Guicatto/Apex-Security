@@ -1,10 +1,8 @@
 import os
-import google.generativeai as genai
 from dotenv import load_dotenv
+from services.gemini_client import generate_with_fallback
 
 load_dotenv()
-
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # HONESTIDADE TECNICA: o Gemini, na configuracao atual do projeto, NAO faz busca
 # ao vivo na internet. O relatorio e uma sintese do conhecimento ja presente no
@@ -26,11 +24,6 @@ ameaca consistentes com seu conhecimento geral de seguranca da informacao."""
 
 
 def generate_radar_report(company_profile: dict) -> str:
-    model = genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        system_instruction=RADAR_SYSTEM_PROMPT
-    )
-
     prompt = f"""PERFIL DA EMPRESA:
 Setor: {company_profile.get('sector')}
 Faturamento anual: {company_profile.get('annual_revenue')}
@@ -40,5 +33,5 @@ Contexto operacional: {company_profile.get('operational_context') or 'Nao fornec
 
 Gere o panorama executivo de ameacas para esta empresa."""
 
-    response = model.generate_content(prompt)
+    response = generate_with_fallback(GEMINI_MODEL, RADAR_SYSTEM_PROMPT, prompt)
     return response.text.strip()

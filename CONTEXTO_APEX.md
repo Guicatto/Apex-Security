@@ -1,7 +1,45 @@
 # CONTEXTO_APEX — Estado final do projeto
 
-Última atualização: 2026-07-22
-Status: PROJETO 100% COMPLETO E EM PRODUÇÃO — 11 módulos com interface visual
+Última atualização: 2026-07-24
+Versão atual: **v2.0.0** (ver [CHANGELOG.md](CHANGELOG.md))
+Status: PROJETO EM PRODUÇÃO — 11 módulos + recursos de produto da v2.0
+
+## ⚙ REGRA PERMANENTE DE VERSIONAMENTO — seguir em toda sessão futura
+
+A partir da v2.0, **toda sessão de desenvolvimento deve incrementar a versão** (v2.1, v2.2…)
+e adicionar a entrada correspondente no `CHANGELOG.md`. Ao final de cada sessão:
+
+1. Atualizar o arquivo `VERSION` na raiz com a nova versão
+2. Adicionar uma seção no topo do `CHANGELOG.md` com a data e as mudanças, separadas em
+   **Adicionado / Alterado / Corrigido**
+3. Atualizar o campo `version` e a `description` em `backend/main.py` (FastAPI e rota `GET /`)
+4. Atualizar a menção de versão no topo do `README.md`
+5. Registrar aqui, no CONTEXTO_APEX.md, o que mudou
+
+Incremento de patch (v2.0.1) para correções pontuais, minor (v2.1.0) para funcionalidades
+novas, major (v3.0.0) para mudanças estruturais que quebrem compatibilidade.
+
+## Paradas manuais pendentes da v2.0
+
+**1. Segunda chave do Gemini (fallback de cota)**
+   - Criar uma segunda conta Google e gerar outra chave em aistudio.google.com
+   - Adicionar como `GEMINI_API_KEY_2` no `backend/.env` local **e** nas variáveis de
+     ambiente do Render. O sistema funciona com uma só chave; a segunda apenas evita
+     indisponibilidade quando a cota diária da primeira estoura.
+
+**2. Conta Gmail de contato (formulário de Contato)**
+   - Criar/usar a conta `apexsecurityofficial@gmail.com`
+   - Ativar a verificação em duas etapas na conta
+   - Gerar uma "Senha de app" em myaccount.google.com/apppasswords
+   - Adicionar `CONTACT_GMAIL_APP_PASSWORD` (a senha de app, sem espaços) e
+     `CONTACT_GMAIL_ADDRESS` nas variáveis de ambiente do Render
+   - Enquanto não configurado, o endpoint `/api/contact` responde 502 com mensagem clara
+     (comportamento esperado, não é bug)
+
+**3. Teste do webhook do Discord**
+   - Requer um servidor Discord próprio: Configurações do Canal → Integrações → Webhooks →
+     Criar Webhook → copiar a URL e colar na página Notificações
+   - Não é bloqueante: o resto do sistema funciona sem webhook configurado
 
 ## Módulo 10 — Autenticação e Multi-tenant (sessão de 2026-07-22)
 
@@ -186,6 +224,36 @@ Traduz a vulnerabilidade em impacto financeiro estimado e desenha o caminho de p
 - Validado com chamada real ao Gemini: perfil "Financeiro / R$ 12M / Alto volume PII" gerou
   impacto R$ 120.000–R$ 600.000, multa LGPD R$ 150.000, downtime R$ 40.000 e blast radius de
   4 nós (dev com senha hardcoded → app web → BD intermediário → BD de clientes).
+
+## Recursos de produto da v2.0 (sessão de 2026-07-24)
+
+- **Fallback de chaves Gemini** — `services/gemini_client.py` centraliza toda chamada ao LLM.
+  Erro de cota/429 troca automaticamente para a próxima chave (`GEMINI_API_KEY`,
+  `GEMINI_API_KEY_2`, `_3`…); erro que não é de cota propaga na hora. A chave que funcionou
+  vira a preferida. Os 4 serviços (remediator, risk_analyzer, intent_checker, radar) usam
+  esse cliente — **nunca voltar a chamar `genai.GenerativeModel` direto**.
+- **Sidebar lateral** (`components/Sidebar.jsx`) com Chave de Integração, Conta, Contato e
+  Notificações — cada uma com rota própria (não são modais).
+- **Página Chave de Integração** (`/integration-key`) — corrige a falha de UX de a api_key
+  só aparecer no signup. Exibe a chave a qualquer momento, com botão de copiar e de gerar
+  nova (`POST /api/auth/regenerate-key`, que invalida a anterior).
+- **Página Conta** (`/account`) — dados do usuário e botão Sair (que saiu do header).
+- **Contato** (`services/email_sender.py` + `routes/contact.py` + `/contact`) — envio por
+  SMTP do Gmail com senha de app. Endpoint aberto, não exige autenticação.
+- **Notificações Discord** (`services/discord_notifier.py`) — campo `discord_webhook_url`
+  no usuário, endpoints de salvar e testar, e disparo automático a cada alerta novo no
+  `/api/scan`. O envio é **best-effort**: falha no Discord nunca quebra o salvamento.
+- **Modo Demo** (`context/DemoContext.jsx` + `data/demoData.js`) — toggle ao lado do logo.
+  Quando ativo, todas as páginas usam dados fictícios e as ações simulam sucesso, **sem
+  nenhuma chamada de API**. Validado com monitor de rede: 9 rotas + 4 ações = 0 requisições.
+- **Relatórios PDF** (`utils/pdfReport.js`, jspdf + autotable) — botão Exportar PDF em
+  Alertas e Risco Real, usando os dados já em tela (sem nova chamada de API).
+- **Security Health Score** — cálculo puramente frontend em Alertas
+  (100 − 25×críticos − 10×altos − 5×médios), com nota A/B/F e cor correspondente.
+- **Timestamp** em cada card de alerta (JetBrains Mono, discreto).
+- Migração aditiva nova: `users.discord_webhook_url` (total de 10 colunas gerenciadas por
+  `run_additive_migrations()`).
+- Testes: **45 verdes** (4 novos cobrindo o fallback de chaves do Gemini).
 
 ## Status final
 
