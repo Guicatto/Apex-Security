@@ -1,9 +1,9 @@
-# Apex Security v2.0
+# Apex Security v2.1
 
 **Plataforma ASPM (Application Security Posture Management)**
 Projeto acadêmico — FIAP Cibersegurança 2026
 
-Versão atual: **v2.0.0** — ver [CHANGELOG.md](CHANGELOG.md)
+Versão atual: **v2.1.0** — ver [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
@@ -75,7 +75,8 @@ Complementos que retomam ideias da arquitetura original, agora viáveis porque o
 - **Grafo de propagação:** reactflow
 - **Autenticação:** JWT (python-jose) + bcrypt (passlib)
 - **Relatórios:** jsPDF + jspdf-autotable
-- **Notificações:** webhook do Discord · **E-mail:** SMTP do Gmail
+- **Notificações:** webhook do Discord · **E-mail:** Resend (API HTTPS)
+- **Internacionalização:** react-i18next — 7 idiomas
 - **Integração GitHub:** PyGitHub
 
 ## Infraestrutura de produção

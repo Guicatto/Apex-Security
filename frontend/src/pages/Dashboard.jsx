@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import StatCard from '../components/StatCard'
 import Card from '../components/Card'
 import { getStats, getAlerts } from '../services/api'
+import { useTranslation } from 'react-i18next'
 import { useDemoMode, demoDelay } from '../context/DemoContext'
 import { demoStats, demoAlerts } from '../data/demoData'
 
@@ -21,6 +22,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
   const { isDemoMode } = useDemoMode()
+  const { t } = useTranslation()
 
   useEffect(() => {
     // MODO DEMO: dados ficticios locais, sem chamada de API
@@ -51,7 +53,7 @@ export default function Dashboard() {
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
       <div style={{ color: '#8A7A5A', fontFamily: "'Raleway', sans-serif", letterSpacing: '0.2em' }}>
-        CARREGANDO...
+        {t('common.loading')}
       </div>
     </div>
   )
@@ -67,12 +69,12 @@ export default function Dashboard() {
           color: '#F0E6C8',
           letterSpacing: '0.05em',
           marginBottom: '4px',
-        }}>Painel de Controle</h1>
+        }}>{t('dashboard.title')}</h1>
         <p style={{
           fontFamily: "'Raleway', sans-serif",
           fontSize: '13px',
           color: '#8A7A5A',
-        }}>Visão geral de segurança em tempo real</p>
+        }}>{t('dashboard.subtitle')}</p>
       </div>
 
       {/* Stat cards */}
@@ -83,25 +85,25 @@ export default function Dashboard() {
         marginBottom: '32px',
       }}>
         <StatCard
-          label="Total de Alertas"
+          label={t('dashboard.totalAlerts')}
           value={stats?.total_alerts ?? 0}
-          sub="detectados pelos scanners"
+          sub={t('dashboard.totalAlertsSub')}
           accent={true}
         />
         <StatCard
-          label="Críticos"
+          label={t('dashboard.critical')}
           value={stats?.by_severity?.CRITICAL ?? 0}
-          sub="requerem ação imediata"
+          sub={t('dashboard.criticalSub')}
         />
         <StatCard
-          label="Alta Severidade"
+          label={t('dashboard.highSeverity')}
           value={stats?.by_severity?.HIGH ?? 0}
-          sub="prioridade elevada"
+          sub={t('dashboard.highSeveritySub')}
         />
         <StatCard
-          label="Resolvidos"
+          label={t('dashboard.resolved')}
           value={stats?.by_severity?.LOW ?? 0}
-          sub="baixa prioridade"
+          sub={t('dashboard.resolvedSub')}
         />
       </div>
 
@@ -121,7 +123,7 @@ export default function Dashboard() {
             letterSpacing: '0.15em',
             textTransform: 'uppercase',
             marginBottom: '20px',
-          }}>Distribuição por Severidade</div>
+          }}>{t('dashboard.severityDistribution')}</div>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={chartData} barSize={32}>
               <XAxis
@@ -168,10 +170,10 @@ export default function Dashboard() {
             letterSpacing: '0.15em',
             textTransform: 'uppercase',
             marginBottom: '20px',
-          }}>Alertas Recentes</div>
+          }}>{t('dashboard.recentAlerts')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {recentAlerts.length === 0 ? (
-              <div style={{ color: '#8A7A5A', fontSize: '13px' }}>Nenhum alerta ainda</div>
+              <div style={{ color: '#8A7A5A', fontSize: '13px' }}>{t('dashboard.noAlerts')}</div>
             ) : recentAlerts.map(alert => (
               <div
                 key={alert.id}

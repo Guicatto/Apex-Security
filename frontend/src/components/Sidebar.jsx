@@ -1,19 +1,27 @@
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { languages } from '../i18n'
 
 const menuItems = [
-  { path: '/integration-key', label: 'Chave de Integração', icon: '⚿', desc: 'Conectar repositórios' },
-  { path: '/account', label: 'Conta', icon: '◐', desc: 'Dados e sessão' },
-  { path: '/contact', label: 'Contato', icon: '✉', desc: 'Falar com a equipe' },
-  { path: '/notifications', label: 'Notificações', icon: '◔', desc: 'Alertas no Discord' },
+  { path: '/integration-key', key: 'integrationKey', icon: '⚿' },
+  { path: '/account', key: 'account', icon: '◐' },
+  { path: '/contact', key: 'contact', icon: '✉' },
+  { path: '/notifications', key: 'notifications', icon: '◔' },
 ]
 
 export default function Sidebar({ open, onClose }) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { t, i18n } = useTranslation()
 
   const go = (path) => {
     navigate(path)
     onClose()
+  }
+
+  const changeLanguage = (code) => {
+    // O languagedetector persiste a escolha no localStorage automaticamente
+    i18n.changeLanguage(code)
   }
 
   return (
@@ -48,12 +56,13 @@ export default function Sidebar({ open, onClose }) {
         display: 'flex',
         flexDirection: 'column',
         padding: '24px 20px',
+        overflowY: 'auto',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
           <img src="/apex-logo.png" alt="Apex Security" style={{ height: '32px' }} />
           <button
             onClick={onClose}
-            aria-label="Fechar menu"
+            aria-label={t('nav.closeMenu')}
             style={{
               background: 'transparent', border: 'none', color: '#8A7A5A',
               fontSize: '18px', cursor: 'pointer', lineHeight: 1, padding: '4px 8px',
@@ -103,19 +112,77 @@ export default function Sidebar({ open, onClose }) {
                     fontWeight: isActive ? '600' : '500',
                     color: isActive ? '#C9A84C' : '#F0E6C8',
                     letterSpacing: '0.03em',
-                  }}>{item.label}</span>
+                  }}>{t(`sidebar.${item.key}`)}</span>
                   <span style={{
                     display: 'block',
                     fontFamily: 'Inter',
                     fontSize: '11px',
                     color: '#8A7A5A',
                     marginTop: '1px',
-                  }}>{item.desc}</span>
+                  }}>{t(`sidebar.${item.key}Desc`)}</span>
                 </span>
               </button>
             )
           })}
         </nav>
+
+        {/* Seletor de idioma */}
+        <div style={{
+          height: '1px',
+          background: 'linear-gradient(90deg, transparent, #2A2200, transparent)',
+          margin: '20px 0 16px',
+        }} />
+
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '14px', padding: '0 14px', marginBottom: '10px',
+        }}>
+          <span style={{ fontSize: '15px', color: '#8A7A5A', width: '18px', flexShrink: 0 }}>⌘</span>
+          <span>
+            <span style={{
+              display: 'block', fontFamily: "'Raleway', sans-serif", fontSize: '13px',
+              fontWeight: '500', color: '#F0E6C8', letterSpacing: '0.03em',
+            }}>{t('sidebar.language')}</span>
+            <span style={{
+              display: 'block', fontFamily: 'Inter', fontSize: '11px', color: '#8A7A5A', marginTop: '1px',
+            }}>{t('sidebar.languageDesc')}</span>
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          {languages.map(lang => {
+            const isCurrent = i18n.resolvedLanguage === lang.code
+            return (
+              <button
+                key={lang.code}
+                onClick={() => changeLanguage(lang.code)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  background: isCurrent ? 'rgba(201, 168, 76, 0.1)' : 'transparent',
+                  border: `1px solid ${isCurrent ? 'rgba(201, 168, 76, 0.3)' : 'transparent'}`,
+                  borderRadius: '6px',
+                  padding: '8px 14px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = 'rgba(201, 168, 76, 0.05)' }}
+                onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = 'transparent' }}
+              >
+                <span style={{ fontSize: '14px', flexShrink: 0 }}>{lang.flag}</span>
+                <span style={{
+                  fontFamily: 'Inter',
+                  fontSize: '12px',
+                  color: isCurrent ? '#C9A84C' : '#8A7A5A',
+                  fontWeight: isCurrent ? '600' : '400',
+                  flex: 1,
+                }}>{lang.label}</span>
+                {isCurrent && <span style={{ color: '#C9A84C', fontSize: '11px' }}>✓</span>}
+              </button>
+            )
+          })}
+        </div>
       </aside>
     </>
   )

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { login } from '../services/api'
 
 const fieldStyle = {
@@ -32,6 +33,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -81,15 +83,15 @@ export default function Login() {
             fontWeight: '600',
             color: '#F0E6C8',
             letterSpacing: '0.05em',
-          }}>Entrar</h1>
+          }}>{t('auth.loginTitle')}</h1>
           <p style={{ fontFamily: 'Raleway', fontSize: '12px', color: '#8A7A5A', marginTop: '4px' }}>
-            Acesse o painel da sua empresa
+            {t('auth.loginSubtitle')}
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '16px' }}>
-            <label style={labelStyle}>E-mail</label>
+            <label style={labelStyle}>{t('common.email')}</label>
             <input
               type="email"
               value={email}
@@ -101,7 +103,7 @@ export default function Login() {
             />
           </div>
           <div style={{ marginBottom: '24px' }}>
-            <label style={labelStyle}>Senha</label>
+            <label style={labelStyle}>{t('common.password')}</label>
             <input
               type="password"
               value={password}
@@ -144,12 +146,12 @@ export default function Login() {
               opacity: loading ? 0.5 : 1,
             }}
           >
-            {loading ? 'ENTRANDO...' : 'ENTRAR'}
+            {loading ? t('auth.loggingIn') : t('auth.loginButton')}
           </button>
         </form>
 
         <div style={{ textAlign: 'center', marginTop: '24px', fontFamily: 'Inter', fontSize: '12px', color: '#8A7A5A' }}>
-          Não tem conta? <Link to="/signup" style={{ color: '#C9A84C' }}>Criar conta</Link>
+          {t('auth.noAccount')} <Link to="/signup" style={{ color: '#C9A84C' }}>{t('auth.createAccount')}</Link>
         </div>
       </div>
     </div>

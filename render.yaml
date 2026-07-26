@@ -15,10 +15,12 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-2.5-flash-lite
-      - key: CONTACT_GMAIL_ADDRESS
-        value: apexsecurityofficial@gmail.com
-      - key: CONTACT_GMAIL_APP_PASSWORD
+      - key: RESEND_API_KEY
         sync: false
+      - key: CONTACT_EMAIL_TO
+        value: apexsecurityofficial@gmail.com
+      - key: RESEND_FROM_ADDRESS
+        value: Apex Security <onboarding@resend.dev>
       - key: GITHUB_TOKEN
         sync: false
       - key: GITHUB_REPO

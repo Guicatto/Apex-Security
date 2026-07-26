@@ -1,8 +1,8 @@
 # CONTEXTO_APEX — Estado final do projeto
 
-Última atualização: 2026-07-24
-Versão atual: **v2.0.0** (ver [CHANGELOG.md](CHANGELOG.md))
-Status: PROJETO EM PRODUÇÃO — 11 módulos + recursos de produto da v2.0
+Última atualização: 2026-07-26
+Versão atual: **v2.1.0** (ver [CHANGELOG.md](CHANGELOG.md))
+Status: PROJETO EM PRODUÇÃO — 11 módulos + recursos de produto (v2.0/v2.1)
 
 ## ⚙ REGRA PERMANENTE DE VERSIONAMENTO — seguir em toda sessão futura
 
@@ -21,20 +21,20 @@ novas, major (v3.0.0) para mudanças estruturais que quebrem compatibilidade.
 
 ## Paradas manuais pendentes da v2.0
 
-**1. Segunda chave do Gemini (fallback de cota)**
-   - Criar uma segunda conta Google e gerar outra chave em aistudio.google.com
-   - Adicionar como `GEMINI_API_KEY_2` no `backend/.env` local **e** nas variáveis de
-     ambiente do Render. O sistema funciona com uma só chave; a segunda apenas evita
-     indisponibilidade quando a cota diária da primeira estoura.
+**1. Conta no Resend (formulário de Contato) — PENDENTE**
+   - Acessar resend.com e criar conta gratuita (login com GitHub ou Google, sem cartão)
+   - Gerar uma **API Key** no painel do Resend
+   - Adicionar `RESEND_API_KEY` nas variáveis de ambiente do Render
+   - Testar o formulário de contato em produção após o deploy
+   - Enquanto não configurado, `/api/contact` responde **503 "Servico de email nao
+     configurado no servidor"** (comportamento esperado, não é bug)
+   - O remetente padrão `onboarding@resend.dev` é um domínio de teste do próprio Resend:
+     funciona de imediato, sem nenhuma configuração de DNS. Usar domínio próprio é
+     opcional e não bloqueia nada.
 
-**2. Conta Gmail de contato (formulário de Contato)**
-   - Criar/usar a conta `apexsecurityofficial@gmail.com`
-   - Ativar a verificação em duas etapas na conta
-   - Gerar uma "Senha de app" em myaccount.google.com/apppasswords
-   - Adicionar `CONTACT_GMAIL_APP_PASSWORD` (a senha de app, sem espaços) e
-     `CONTACT_GMAIL_ADDRESS` nas variáveis de ambiente do Render
-   - Enquanto não configurado, o endpoint `/api/contact` responde 502 com mensagem clara
-     (comportamento esperado, não é bug)
+**2. Segunda chave do Gemini (fallback de cota) — CONFIGURADA**
+   - `GEMINI_API_KEY_2` já está no `.env` local. Falta apenas replicá-la nas variáveis de
+     ambiente do Render para o fallback também valer em produção.
 
 **3. Teste do webhook do Discord**
    - Requer um servidor Discord próprio: Configurações do Canal → Integrações → Webhooks →
@@ -225,6 +225,36 @@ Traduz a vulnerabilidade em impacto financeiro estimado e desenha o caminho de p
   impacto R$ 120.000–R$ 600.000, multa LGPD R$ 150.000, downtime R$ 40.000 e blast radius de
   4 nós (dev com senha hardcoded → app web → BD intermediário → BD de clientes).
 
+## v2.1 — Contato via Resend + Seletor de idiomas (sessão de 2026-07-26)
+
+**Contato migrado de SMTP para Resend.** O formulário retornava "Não foi possível enviar".
+Causa: hospedagens gratuitas (Render incluso) **bloqueiam conexões SMTP de saída** como
+proteção anti-spam — a porta 587 nunca conecta, mesmo com credenciais corretas.
+`services/email_sender.py` agora usa a **API HTTPS do Resend** (`requests.post` para
+api.resend.com), sem nenhuma dependência de SMTP. O endpoint distingue os erros:
+**503** quando a `RESEND_API_KEY` não está configurada e **502** quando o envio falha,
+ambos com log no servidor. Variáveis antigas `CONTACT_GMAIL_*` foram removidas de todos
+os arquivos. **Nunca voltar a usar smtplib neste projeto.**
+
+**Seletor de 7 idiomas.** `react-i18next` + `i18next-browser-languagedetector`.
+- `frontend/src/i18n.js` — configuração e a lista `languages` (código, nome nativo, bandeira)
+- `frontend/src/locales/{pt,en,es,zh,hi,fr,ja}.json` — **87 chaves idênticas em todos**
+  (validado por script comparando as chaves achatadas). `pt.json` é a base: toda chave nova
+  entra nele primeiro e depois é replicada nos outros seis.
+- Seletor na sidebar (abaixo dos 4 itens), destacando o idioma atual com ✓
+- **Armadilha importante**: `lng: 'pt'` fixo no `init()` sobrescreve o idioma detectado no
+  localStorage e a escolha do usuário não sobrevive ao reload. A configuração usa **apenas
+  `fallbackLng`** — não reintroduzir `lng`.
+- Cobertura atual: navegação, sidebar, seletor de idioma, Dashboard, Alertas, Login e o
+  botão Sair. **Expansão pendente** (estrutura pronta, basta adicionar chaves e trocar os
+  textos): RealRisk, AnomalyAnalysis, IntentChecker, Radar, Contact, Notifications,
+  IntegrationKey, Account, Signup, Remediations, PullRequests, Repositories.
+
+> **Revisão humana recomendada** para chinês, hindi e japonês antes de uso comercial real.
+> As traduções foram feitas com o melhor esforço técnico, mantendo termos internacionais
+> (PR, SLA, LGPD, Discord) quando não há equivalente natural, mas não passaram por revisão
+> de falante nativo. Português, inglês, espanhol e francês estão em nível adequado para uso.
+
 ## Recursos de produto da v2.0 (sessão de 2026-07-24)
 
 - **Fallback de chaves Gemini** — `services/gemini_client.py` centraliza toda chamada ao LLM.
@@ -239,7 +269,8 @@ Traduz a vulnerabilidade em impacto financeiro estimado e desenha o caminho de p
   nova (`POST /api/auth/regenerate-key`, que invalida a anterior).
 - **Página Conta** (`/account`) — dados do usuário e botão Sair (que saiu do header).
 - **Contato** (`services/email_sender.py` + `routes/contact.py` + `/contact`) — envio por
-  SMTP do Gmail com senha de app. Endpoint aberto, não exige autenticação.
+  envio de e-mail. Endpoint aberto, não exige autenticação. **Na v2.1 migrou de SMTP
+  (Gmail) para a API HTTPS do Resend** — ver seção da v2.1 abaixo.
 - **Notificações Discord** (`services/discord_notifier.py`) — campo `discord_webhook_url`
   no usuário, endpoints de salvar e testar, e disparo automático a cada alerta novo no
   `/api/scan`. O envio é **best-effort**: falha no Discord nunca quebra o salvamento.

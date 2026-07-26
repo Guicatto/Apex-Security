@@ -1,19 +1,20 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import Sidebar from './Sidebar'
 import { useDemoMode } from '../context/DemoContext'
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: '◈' },
-  { path: '/alerts', label: 'Alertas', icon: '⚠' },
-  { path: '/remediations', label: 'Remediações', icon: '⚕' },
-  { path: '/pull-requests', label: 'Pull Requests', icon: '⟲' },
-  { path: '/real-risk', label: 'Risco Real', icon: '◆' },
-  { path: '/repositories', label: 'Repositórios', icon: '◉' },
+  { path: '/', key: 'dashboard', icon: '◈' },
+  { path: '/alerts', key: 'alerts', icon: '⚠' },
+  { path: '/remediations', key: 'remediations', icon: '⚕' },
+  { path: '/pull-requests', key: 'pullRequests', icon: '⟲' },
+  { path: '/real-risk', key: 'realRisk', icon: '◆' },
+  { path: '/repositories', key: 'repositories', icon: '◉' },
   // Módulos avançados (consultivos) — separados visualmente na navegação
-  { path: '/anomaly-analysis', label: 'Anomalias', icon: '✦', advanced: true },
-  { path: '/intent-checker', label: 'Intenção', icon: '⟡', advanced: true },
-  { path: '/radar', label: 'Radar', icon: '◎', advanced: true },
+  { path: '/anomaly-analysis', key: 'anomalies', icon: '✦', advanced: true },
+  { path: '/intent-checker', key: 'intent', icon: '⟡', advanced: true },
+  { path: '/radar', key: 'radar', icon: '◎', advanced: true },
 ]
 
 export default function Layout({ children }) {
@@ -22,6 +23,7 @@ export default function Layout({ children }) {
   const companyName = localStorage.getItem('company_name')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { isDemoMode, setIsDemoMode } = useDemoMode()
+  const { t } = useTranslation()
 
   return (
     <div style={{
@@ -46,7 +48,7 @@ export default function Layout({ children }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <button
             onClick={() => setSidebarOpen(true)}
-            aria-label="Abrir menu"
+            aria-label={t('nav.openMenu')}
             style={{
               background: 'transparent',
               border: 'none',
@@ -84,7 +86,7 @@ export default function Layout({ children }) {
               transition: 'all 0.2s ease',
             }}
           >
-            MODO DEMO: {isDemoMode ? 'ON' : 'OFF'}
+            {t('nav.demoMode')}: {isDemoMode ? t('nav.on') : t('nav.off')}
           </button>
         </div>
 
@@ -110,7 +112,7 @@ export default function Layout({ children }) {
                       letterSpacing: '0.2em',
                       writingMode: 'horizontal-tb',
                       whiteSpace: 'nowrap',
-                    }}>AVANÇADOS</span>
+                    }}>{t('nav.advanced')}</span>
                   </span>
                 )}
               <button
@@ -145,7 +147,7 @@ export default function Layout({ children }) {
                 }}
               >
                 <span style={{ fontSize: '12px', opacity: 0.7 }}>{item.icon}</span>
-                {item.label}
+                {t(`nav.${item.key}`)}
               </button>
               </span>
             )

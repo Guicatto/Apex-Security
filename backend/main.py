@@ -16,8 +16,8 @@ run_additive_migrations()
 
 app = FastAPI(
     title="Apex Security API",
-    description="Plataforma ASPM — Apex Security v2.0",
-    version="2.0.0"
+    description="Plataforma ASPM — Apex Security v2.1",
+    version="2.1.0"
 )
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
@@ -52,7 +52,7 @@ async def startup_event():
 def root():
     return {
         "service": "Apex Security API",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "status": "online",
         "docs": "/docs",
         "health": "/health"
@@ -61,4 +61,4 @@ def root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "service": "Apex Security API v2.0"}
+    return {"status": "ok", "service": "Apex Security API v2.1"}

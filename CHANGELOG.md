@@ -1,5 +1,24 @@
 # Changelog — Apex Security
 
+## v2.1.0 — 2026-07-26
+
+### Corrigido
+
+- Formulário de contato migrado de SMTP (Gmail) para Resend (API HTTPS) —
+  resolve bloqueio de porta SMTP em hospedagem gratuita
+- Mensagens de erro do endpoint `/api/contact` agora distinguem serviço não
+  configurado (503) de falha no envio (502), com log no servidor
+
+### Adicionado
+
+- Seletor de idiomas com 7 opções: Português (padrão), Inglês, Espanhol,
+  Chinês, Hindi, Francês e Japonês, acessível pela sidebar
+- Idioma escolhido persiste no navegador entre sessões
+
+### Removido
+
+- Dependência de `CONTACT_GMAIL_ADDRESS` e `CONTACT_GMAIL_APP_PASSWORD`
+
 ## v2.0.0 — 2026-07-24
 
 Grande atualização de produto: sidebar de conta, fallback de múltiplas chaves do Gemini,

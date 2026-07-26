@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import Card from '../components/Card'
 import { getMe } from '../services/api'
 
@@ -12,6 +13,7 @@ export default function Account() {
   const [me, setMe] = useState(null)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   useEffect(() => {
     getMe()
@@ -77,7 +79,7 @@ export default function Account() {
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192, 57, 43, 0.12)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
         >
-          SAIR
+          {t('auth.logout')}
         </button>
       </Card>
     </div>

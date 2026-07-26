@@ -3,6 +3,7 @@ import SeverityBadge from '../components/SeverityBadge'
 import Card from '../components/Card'
 import { getAlerts, remediate, createPR, createRiskAssessment, createSLAAssessment } from '../services/api'
 import { generateAlertsReport } from '../utils/pdfReport'
+import { useTranslation } from 'react-i18next'
 import { useDemoMode, demoDelay } from '../context/DemoContext'
 import { demoAlerts } from '../data/demoData'
 
@@ -24,11 +25,11 @@ const calculateHealthScore = (alerts) => {
   const high = alerts.filter(a => a.severity_adjusted === 'HIGH').length
   const medium = alerts.filter(a => a.severity_adjusted === 'MEDIUM').length
   const score = Math.max(0, 100 - (critical * 25) - (high * 10) - (medium * 5))
-  let grade, color, label
-  if (score >= 90) { grade = 'A'; color = '#1A6B3C'; label = 'Excelente' }
-  else if (score >= 70) { grade = 'B'; color = '#C9A84C'; label = 'Atenção' }
-  else { grade = 'F'; color = '#C0392B'; label = 'Risco Crítico' }
-  return { score, grade, color, label }
+  let grade, color, labelKey
+  if (score >= 90) { grade = 'A'; color = '#1A6B3C'; labelKey = 'alerts.gradeExcellent' }
+  else if (score >= 70) { grade = 'B'; color = '#C9A84C'; labelKey = 'alerts.gradeAttention' }
+  else { grade = 'F'; color = '#C0392B'; labelKey = 'alerts.gradeCritical' }
+  return { score, grade, color, labelKey }
 }
 
 export default function Alerts() {
@@ -39,6 +40,7 @@ export default function Alerts() {
   const [actionLoading, setActionLoading] = useState({})
   const [messages, setMessages] = useState({})
   const { isDemoMode } = useDemoMode()
+  const { t } = useTranslation()
 
   const fetchAlerts = async () => {
     // MODO DEMO: filtra os dados ficticios localmente, sem tocar na API
@@ -163,9 +165,9 @@ export default function Alerts() {
           color: '#F0E6C8',
           letterSpacing: '0.05em',
           marginBottom: '4px',
-        }}>Alertas de Segurança</h1>
+        }}>{t('alerts.title')}</h1>
         <p style={{ color: '#8A7A5A', fontFamily: 'Raleway', fontSize: '13px' }}>
-          {alerts.length} alerta{alerts.length !== 1 ? 's' : ''} encontrado{alerts.length !== 1 ? 's' : ''}
+          {t('alerts.found', { count: alerts.length })}
         </p>
 
         {/* Security Health Score — compacto, complementa o cabecalho */}
@@ -186,7 +188,7 @@ export default function Alerts() {
               <div style={{
                 fontFamily: 'Raleway', fontSize: '9px', color: health.color,
                 letterSpacing: '0.12em', textTransform: 'uppercase',
-              }}>Security Health · {health.label}</div>
+              }}>{t('alerts.healthScore')} · {t(health.labelKey)}</div>
             </div>
           </div>
         )}
@@ -214,25 +216,25 @@ export default function Alerts() {
           onMouseEnter={e => { if (alerts.length) { e.currentTarget.style.borderColor = '#C9A84C'; e.currentTarget.style.color = '#C9A84C' } }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A2200'; e.currentTarget.style.color = '#8A7A5A' }}
         >
-          ▤ EXPORTAR PDF
+          ▤ {t('common.exportPDF')}
         </button>
       </div>
 
       {/* Filtros */}
       <div style={{ display: 'flex', gap: '24px', marginBottom: '24px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <span style={{ color: '#8A7A5A', fontSize: '11px', fontFamily: 'Raleway', letterSpacing: '0.1em', marginRight: '4px' }}>SEVERIDADE</span>
+          <span style={{ color: '#8A7A5A', fontSize: '11px', fontFamily: 'Raleway', letterSpacing: '0.1em', marginRight: '4px' }}>{t('alerts.severity')}</span>
           {severities.map(s => (
             <button key={s} style={filterBtnStyle(severityFilter === s)} onClick={() => setSeverityFilter(s)}>
-              {s}
+              {s === 'TODAS' ? t('alerts.all') : s}
             </button>
           ))}
         </div>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <span style={{ color: '#8A7A5A', fontSize: '11px', fontFamily: 'Raleway', letterSpacing: '0.1em', marginRight: '4px' }}>FERRAMENTA</span>
-          {tools.map(t => (
-            <button key={t} style={filterBtnStyle(toolFilter === t)} onClick={() => setToolFilter(t)}>
-              {t.toUpperCase()}
+          <span style={{ color: '#8A7A5A', fontSize: '11px', fontFamily: 'Raleway', letterSpacing: '0.1em', marginRight: '4px' }}>{t('alerts.tool')}</span>
+          {tools.map(tool => (
+            <button key={tool} style={filterBtnStyle(toolFilter === tool)} onClick={() => setToolFilter(tool)}>
+              {tool === 'TODAS' ? t('alerts.all') : tool.toUpperCase()}
             </button>
           ))}
         </div>
@@ -240,11 +242,11 @@ export default function Alerts() {
 
       {/* Lista */}
       {loading ? (
-        <div style={{ color: '#8A7A5A', fontFamily: 'Raleway', letterSpacing: '0.2em' }}>CARREGANDO...</div>
+        <div style={{ color: '#8A7A5A', fontFamily: 'Raleway', letterSpacing: '0.2em' }}>{t('common.loading')}</div>
       ) : alerts.length === 0 ? (
         <Card>
           <div style={{ color: '#8A7A5A', textAlign: 'center', padding: '32px', fontFamily: 'Raleway' }}>
-            Nenhum alerta encontrado com os filtros selecionados
+            {t('alerts.empty')}
           </div>
         </Card>
       ) : (
@@ -310,7 +312,7 @@ export default function Alerts() {
                       opacity: actionLoading[`rem_${alert.id}`] ? 0.5 : 1,
                     }}
                   >
-                    {actionLoading[`rem_${alert.id}`] ? 'GERANDO...' : 'REMEDIAR'}
+                    {actionLoading[`rem_${alert.id}`] ? t('alerts.remediating') : t('alerts.remediate')}
                   </button>
                   <button
                     onClick={() => handleCreatePR(alert.id)}
@@ -329,7 +331,7 @@ export default function Alerts() {
                       opacity: actionLoading[`pr_${alert.id}`] ? 0.5 : 1,
                     }}
                   >
-                    {actionLoading[`pr_${alert.id}`] ? 'CRIANDO...' : 'CRIAR PR'}
+                    {actionLoading[`pr_${alert.id}`] ? t('alerts.creatingPR') : t('alerts.createPR')}
                   </button>
                   <button
                     onClick={() => handleMapRisk(alert.id)}
@@ -348,7 +350,7 @@ export default function Alerts() {
                       opacity: actionLoading[`risk_${alert.id}`] ? 0.5 : 1,
                     }}
                   >
-                    {actionLoading[`risk_${alert.id}`] ? 'MAPEANDO...' : 'MAPEAR RISCO'}
+                    {actionLoading[`risk_${alert.id}`] ? t('alerts.mappingRisk') : t('alerts.mapRisk')}
                   </button>
                   <button
                     onClick={() => handleViewSLA(alert.id)}
@@ -367,7 +369,7 @@ export default function Alerts() {
                       opacity: actionLoading[`sla_${alert.id}`] ? 0.5 : 1,
                     }}
                   >
-                    {actionLoading[`sla_${alert.id}`] ? 'CALCULANDO...' : 'VER SLA'}
+                    {actionLoading[`sla_${alert.id}`] ? t('alerts.calculatingSLA') : t('alerts.viewSLA')}
                   </button>
                 </div>
               </div>
